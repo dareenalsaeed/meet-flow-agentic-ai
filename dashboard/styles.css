@@ -1,0 +1,173 @@
+:root {
+  --ink: #1c2430;
+  --muted: #5c6b7a;
+  --line: #d8e0e8;
+  --paper: #f3f5f8;
+  --card: #ffffff;
+  --accent: #1f4e79;
+  --accent-soft: #e7eef6;
+  --ok: #1d6b43;
+  --ok-bg: #e6f4ec;
+  --pending: #7a5414;
+  --pending-bg: #f8f1e3;
+  --review: #8d3a3a;
+  --review-bg: #f8ecec;
+  --shadow: 0 1px 2px rgba(28, 36, 48, 0.06);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.45;
+}
+
+.top, main { max-width: 980px; margin: 0 auto; padding: 28px 20px 0; }
+main { padding-bottom: 48px; }
+
+.kicker {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+h1 { margin: 0; font-size: 40px; letter-spacing: -0.03em; }
+h2 { margin: 0 0 14px; font-size: 20px; }
+.deck { margin: 6px 0 0; font-size: 18px; }
+.intro, .hint, .form-note { margin: 8px 0 0; color: var(--muted); }
+
+.top { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+
+.mode, .badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.mode { background: #fff4d6; color: var(--pending); border: 1px solid #ead7a4; }
+
+.notice {
+  max-width: 980px;
+  margin: 16px auto 0;
+  padding: 0 20px;
+  color: var(--muted);
+}
+
+.panel {
+  margin-top: 16px;
+  padding: 18px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+
+textarea {
+  width: 100%;
+  margin-top: 4px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  resize: vertical;
+  color: var(--ink);
+  font: inherit;
+  line-height: 1.45;
+}
+
+textarea:focus, button:focus, .chip:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.samples { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+
+.chip, button {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--accent);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.chip { padding: 6px 10px; }
+button#process {
+  margin-top: 12px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+}
+
+.summary { display: grid; gap: 12px; }
+.summary div { padding-top: 8px; border-top: 1px solid var(--line); }
+.summary h3, .action h3, .meeting h3, .panel h3 { margin: 0 0 6px; font-size: 16px; }
+.summary p, .action p, .meeting p { margin: 0; }
+
+.actions { display: grid; gap: 10px; }
+
+.action {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.meta { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 8px; color: var(--muted); font-size: 14px; }
+.meta strong { color: var(--ink); font-weight: 650; }
+
+.badge.task { background: var(--accent-soft); color: var(--accent); }
+.badge.meeting { background: #e5f2f0; color: #1d5c56; }
+.badge.follow { background: var(--pending-bg); color: var(--pending); }
+.badge.unclear, .badge.review { background: var(--review-bg); color: var(--review); }
+.badge.ok { background: var(--ok-bg); color: var(--ok); }
+.badge.pending { background: var(--pending-bg); color: var(--pending); }
+
+.review-box {
+  padding: 14px;
+  border-left: 4px solid var(--review);
+  background: #fcf7f7;
+  border-radius: 8px;
+}
+
+.review-box h3 { margin: 0 0 8px; }
+.review-box p { margin: 4px 0; }
+
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 8px 6px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; }
+
+.activity { list-style: none; margin: 0; padding: 0; }
+.activity li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+@media (max-width: 720px) {
+  h1 { font-size: 32px; }
+  .top { display: block; }
+  .mode { margin-top: 12px; }
+  .activity li { display: block; }
+}

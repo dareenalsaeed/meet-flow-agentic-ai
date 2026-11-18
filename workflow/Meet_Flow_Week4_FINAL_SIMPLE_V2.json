@@ -1,0 +1,1673 @@
+{
+  "name": "Meet Flow Week 4 - Organizational Action Router",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## AI Meeting Notes Assistant \u2014 Week 2\n\nSame task as Week 1: paste rough meeting notes and get a structured summary.\n\nTrack A adds a visible check:\nGenerate \u2192 Evaluate \u2192 PASS or REVISE \u2192 Revise once \u2192 Evaluate again \u2192 Final\n\nThe chat shows the meeting summary only. Execution data keeps the review trace.\n\nAfter import, select **Gateway credits** on each OpenAI Chat Model node. The model id is gpt-4o-mini. This file has no API key.\n\nSimple Memory is not connected. Each run uses only the notes in that message.",
+        "height": 360,
+        "width": 460,
+        "color": 4
+      },
+      "id": "df286a80-89ab-475f-a739-d80842c43b9d",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Reviewer criteria\n\nThe Meeting Notes Reviewer compares the draft with the complete original notes.\n\nTwo critical errors, and either one is REVISE:\n\n1. Unsupported addition. An owner, deadline, decision, date, or task the notes do not state.\n2. Supported fact removed. An explicit owner, deadline, or decision was changed to \"Not stated / unclear\" or \"No decision stated.\"\n\nAlso check completeness, real gaps, action-item accuracy, and the four sections.\n\nExplicit facts to preserve: \"Alex will... by Friday,\" \"Priya will...,\" and \"we agreed\" or \"the group decided.\"\nAmbiguous facts stay unclear: \"Jordan or maybe Sam,\" and \"soon.\"\nA missing deadline does not erase a stated owner.\n\nThe decision is exactly PASS or REVISE.",
+        "height": 360,
+        "width": 480,
+        "color": 5
+      },
+      "id": "9c080783-3b86-4d7b-8560-c31d714209f2",
+      "name": "Sticky Note Criteria",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        512,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Routing \u2014 one cycle only\n\n**PASS or REVISE?**\nTrue (upper) = decision is PASS \u2192 Final Meeting Summary\nFalse (lower) = decision is REVISE \u2192 Revision Agent \u2192 second review \u2192 Final Meeting Summary After Revision\n\nThe second review uses the same criteria. It does not start another revision.\n\nScreenshot nodes for evidence:\nStore Initial Draft, Read First Review, Store Revised Draft, Read Second Review, and the final node that ran.",
+        "height": 360,
+        "width": 500,
+        "color": 6
+      },
+      "id": "e57ab7c7-c5dd-40f6-887a-f6e67e182b04",
+      "name": "Sticky Note Route",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1024,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseMode": "lastNode"
+        }
+      },
+      "id": "27f691f1-ce55-48fe-86c9-244a99ae486b",
+      "name": "When chat message received",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        80,
+        560
+      ],
+      "webhookId": "767b95e3-6d79-49f4-9991-265afd9b01ff"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ \"Preserve every explicit owner, deadline, decision, and confirmed meeting in the notes below. When the notes state a full date such as November 17, 2026, write YYYY-MM-DD. When they state a clock time such as 2:00 PM, write HH:MM. Do not convert a weekday by itself. Use Not stated / unclear only for a field the notes do not state. A missing deadline does not erase an explicit owner. We agreed and the group decided are decisions. Fill Main Discussion Points with the topics the notes discuss, including suggestions that are not decisions. Do not leave that section empty.\\n\\nMEETING NOTES:\\n\" + $json.chatInput }}",
+        "options": {
+          "systemMessage": "You are the Meeting Notes Draft Agent in a graduate student's AI Meeting Notes Assistant.\n\nWrite the FIRST draft from the meeting notes in the user message. Do not review yourself. Do not output JSON.\n\nPRESERVE EXPLICIT FACTS\nIf the notes explicitly state a fact, put that fact in the summary. Do not replace it with \"Not stated / unclear\" or \"No decision stated.\"\n\nThese are explicit:\n- \"Alex will draft the methods paragraph.\" means Owner: Alex.\n- \"Alex will draft the methods paragraph by Friday.\" means Owner: Alex and Deadline: Friday.\n- \"Priya will update the figure caption.\" means Owner: Priya.\n- \"We agreed to use percentages.\" is a key decision. \"We agreed\" is explicit evidence of a decision.\n- \"The group decided to freeze the codebook.\" is a key decision.\n\nA missing field does not erase a stated field. If Priya will update the caption and no deadline was given, write Owner: Priya and Deadline: Not stated / unclear.\n\nMARK ONLY REAL GAPS\nUse \"Not stated / unclear\" only for a field the notes do not state.\n- \"Jordan might email the station list, or maybe Sam will.\" means Task: Email the station list. The Owner line must be exactly \"Owner: Not stated / unclear\". The Deadline line must be exactly \"Deadline: Not stated / unclear\". Do not write \"Owner: Jordan or Sam\" or put either name on the Owner line. Under Missing or Unclear Information, explain the gap, for example: \"Jordan and Sam were mentioned as possible owners for the station-list email, but neither was assigned.\"\n- \"soon\" is not a calendar date. Do not convert it to Friday or any other date. Write Deadline: Not stated / unclear. You may quote \"soon\" under Missing or Unclear Information.\n- \"We should probably\" is not a decision unless the notes also say the group decided or agreed.\n\nDo not invent names, owners, deadlines, dates, decisions, tasks, or reasons.\n\nOUTPUT\nReturn only this shape:\n\n# Meeting Summary\n\n## Main Discussion Points\nWrite the important topics the notes actually discuss. This section must not be empty when the notes contain substantive discussion.\nA suggestion, an open question, or an unassigned possibility is still a discussion point. Do not turn it into a decision, and do not invent an owner.\nExamples that belong here even though they are not decisions:\n- \"We should probably look at the detector data next.\"\n- \"Jordan might email the station list, or maybe Sam will.\"\n- The notes leave open whether a figure is for a class presentation or an advisor draft.\nSummarize those topics briefly. Do not invent topics the notes do not mention.\n\n## Key Decisions\nInclude every explicit decision, including sentences that say the group agreed. If the notes contain no decision and no agreement, write exactly:\nNo decision stated.\n\n## Action Items\n1. Task: ...\n   Owner: ...\n   Deadline: ...\nIf the notes state the owner, write that name. If they state the deadline, write that deadline, including a weekday such as Friday.\nIf that item's owner is not stated, or several people are only possible owners and nobody was assigned, write exactly: Owner: Not stated / unclear. Do not write \"Owner: Jordan or Sam\" or any other list of possible names on the Owner line.\nIf that item's deadline is not stated, write exactly: Deadline: Not stated / unclear\nIf there are no action items, write: No action item stated.\n\n## Confirmed Meetings\nInclude this section in every summary.\nUse a numbered row only when the notes confirm that the meeting will happen.\nCopy this shape exactly:\n1. Title: ...\n   Date: YYYY-MM-DD\n   Start: HH:MM\n   End: HH:MM\nWrite a full calendar date such as November 17, 2026 as YYYY-MM-DD.\nWrite a clock time such as 2:00 PM as 24-hour HH:MM.\nDo not convert a weekday by itself, such as Friday, or a phrase such as next week.\nIf the notes confirm a meeting but omit the date, start, or end, keep the row and write exactly \"Not stated / unclear\" for each missing field.\nDo not invent a date, start time, or end time.\nDo not include a meeting described with maybe, might, could, TBD, soon, ASAP, or next week.\nIf the notes do not confirm a meeting, write exactly: No confirmed meeting stated.\n\n## Missing or Unclear Information\nList only what the notes leave missing, ambiguous, or unresolved.\n\nDo not add any section beyond these five.",
+          "maxIterations": 5
+        }
+      },
+      "id": "b0d6bb8b-4129-4147-aea5-52298f10cd2d",
+      "name": "Meeting Notes Draft Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        432,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "gpt-4o-mini"
+        },
+        "options": {
+          "maxTokens": 2000,
+          "temperature": 0
+        }
+      },
+      "id": "344bea8f-c013-4e57-9cba-83a074ec3164",
+      "name": "OpenAI Chat Model - Draft",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        384,
+        832
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": null,
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "function asText(value) {\n  if (typeof value === \"string\") return value.trim();\n  if (value && typeof value === \"object\") {\n    if (typeof value.output === \"string\") return value.output.trim();\n    if (typeof value.text === \"string\") return value.text.trim();\n    return JSON.stringify(value, null, 2);\n  }\n  return \"\";\n}\n\nfunction negationPreface(notes) {\n  const sentences = String(notes || \"\").split(/(?<=[.!?])\\s+/).filter(function (part) {\n    return part.trim();\n  });\n  const lines = [\n    \"NEGATION CHECK FIRST. Do this before every owner check, deadline check, and fact-preservation check.\",\n    \"The words deadline, owner, assigned, and stated are not evidence that a value exists. If no, none, nobody, not stated, not given, or not assigned negates them, that field is ABSENT.\",\n    \"An ABSENT field written as Not stated / unclear is correct. It is not a reason for REVISE.\",\n  ];\n  const seen = {};\n  sentences.forEach(function (sentence) {\n    const s = sentence.toLowerCase();\n    const ownerNeg = /\\b(nobody was assigned|no owner was named|no owner was stated|nobody was named as responsible|no one was assigned|not assigned)\\b/.test(s);\n    const deadlineNeg = /\\b(no deadline was stated|no deadline was given|deadline was not stated|deadline was not given)\\b/.test(s);\n    const decisionNeg = /\\b(no decision was made|no decision was stated)\\b/.test(s);\n    if (ownerNeg && !seen.owner) {\n      seen.owner = true;\n      lines.push(\"OWNER ABSENT. The notes say the owner was not assigned. Nobody was assigned is not an owner. Owner: Not stated / unclear is correct. Do not return REVISE for a missing owner.\");\n    }\n    if (deadlineNeg && !seen.deadline) {\n      seen.deadline = true;\n      lines.push(\"DEADLINE ABSENT. The notes say no deadline was stated or given. That is not a deadline. The words deadline and stated are negated by no. Deadline: Not stated / unclear is correct. Do not say the draft is missing a deadline, and do not return REVISE for this field.\");\n    }\n    if (decisionNeg && !seen.decision) {\n      seen.decision = true;\n      lines.push(\"DECISION ABSENT. No decision was made is not a decision. Do not return REVISE for a missing decision.\");\n    }\n  });\n  if (!seen.owner && !seen.deadline && !seen.decision) {\n    lines.push(\"No explicit absence was found. Only a positive named value, such as Maya or Friday, must be preserved.\");\n  }\n  return lines;\n}\n\nfunction reviewerMessage(originalNotes, draft) {\n  const message = negationPreface(originalNotes).concat([\n    \"Compare this draft with the complete original meeting notes.\",\n    \"Use the negation check above before State 1. A field marked ABSENT is not a fact that was removed.\",\n    \"State 1 applies only to a field the negation check did not mark ABSENT. State 1, explicit value: the notes positively name one owner or one day, such as Maya and Friday, in a sentence that is not negated. The draft must keep that value. Replacing Maya or Friday with Not stated / unclear is REVISE.\",\n    \"State 3, ambiguous value: more than one possible person, or timing described only as soon, with no confirmed assignment. Owner: Not stated / unclear and Deadline: Not stated / unclear are correct. Do not write Owner: Jordan or Sam, and do not turn soon into a date.\",\n    \"Return REVISE only for a real error: a dropped positive name or day, an invented fact, or an empty Main Discussion Points section. A negated owner or deadline is not a dropped fact.\",\n    \"A named owner stays even when the deadline sentence is negated.\",\n    \"We agreed and the group decided are decisions.\",\n    \"Judge the draft only against these notes.\",\n    \"\",\n    \"ORIGINAL MEETING NOTES:\",\n    originalNotes,\n    \"\",\n    \"MEETING SUMMARY DRAFT:\",\n    draft,\n  ]).join(\"\\n\");\n  if (!message.includes(originalNotes)) {\n    throw new Error(\"The reviewer message dropped the original meeting notes.\");\n  }\n  return message;\n}\n\nconst chat = $(\"When chat message received\").first().json;\nconst agentJson = $input.first().json;\nconst originalNotes = typeof chat.chatInput === \"string\" ? chat.chatInput.trim() : \"\";\nconst initialDraft = asText(agentJson.output !== undefined ? agentJson.output : agentJson);\n\nif (!originalNotes) {\n  throw new Error(\"No meeting notes were found in the chat message. Paste the notes and run the test again.\");\n}\nif (!initialDraft) {\n  throw new Error(\"The Meeting Notes Draft Agent returned an empty draft.\");\n}\n\nreturn [\n  {\n    json: {\n      originalNotes,\n      initialDraft,\n      sessionId: chat.sessionId || null,\n      reviewerUserMessage: reviewerMessage(originalNotes, initialDraft),\n    },\n  },\n];\n"
+      },
+      "id": "50d98351-269b-4a7f-b45c-c7fbb8bf457f",
+      "name": "Store Initial Draft",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        768,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.reviewerUserMessage }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "You are the Meeting Notes Reviewer. Compare the draft with the complete original meeting notes. You are not the author of the summary.\n\nReturn a structured result with exactly two fields:\n- decision: the exact uppercase word PASS, or the exact uppercase word REVISE\n- feedback: one or two sentences naming the specific fact in THIS draft\n\nJudge the draft only against the original notes. Do not judge it against earlier reviewer feedback.\nJudge meaning, not literal wording. Different words for the same meaning are not a reason for REVISE.\n\nNEGATION CHECK FIRST. Do this before every fact-preservation check.\nIf a statement contains an explicit absence such as no, none, nobody, not stated, not given, not assigned, or equivalent wording, classify that field as ABSENT before you ask whether a fact was removed.\nABSENT means the value does not exist. Those statements are never evidence that a specific owner, deadline, or decision exists.\nThe words deadline, owner, assigned, and stated do not create a fact. \"No deadline was stated\" means a deadline was not stated. \"Nobody was assigned\" means an owner was not assigned. \"No decision was made\" means there is no decision.\nWrong reading, which is forbidden: \"The draft is missing a deadline, which is explicitly stated in the original notes.\" That reading deletes the word no.\nOriginal: \"No deadline was stated.\" Draft: \"Deadline: Not stated / unclear.\" This is correct and is not a reason for REVISE.\nOriginal: \"Nobody was assigned.\" Draft: \"Owner: Not stated / unclear.\" This is correct and is not a reason for REVISE.\nThis exact pair must PASS. Original: \"The budget slide was discussed, but nobody was assigned to update it and no deadline was stated.\" Draft: Task: Update the budget slide, Owner: Not stated / unclear, Deadline: Not stated / unclear.\n\nPRE-DECISION CHECK. Classify every owner field and every deadline field before you choose PASS or REVISE.\n\nState 1 \u2014 explicit value. Use this only for a field the negation check did not mark ABSENT.\nThe notes positively name one owner or one day, and that sentence is not negated.\n\"Maya will update the dashboard slide by Friday.\" means Owner: Maya and Deadline: Friday.\nThe draft must keep that value. Replacing Maya or Friday with \"Not stated / unclear\" is REVISE.\n\nState 2 \u2014 explicit absence.\nThe notes say that no value was assigned, named, stated, or given.\n\"Nobody was assigned\", \"no owner was named\", and \"no owner was stated\" mean the same thing as \"Owner: Not stated / unclear\".\n\"No deadline was stated\" and \"no deadline was given\" mean the same thing as \"Deadline: Not stated / unclear\".\nThat draft is correct. It must not be a reason for REVISE.\nThis pair must PASS: the notes say \"The budget slide was discussed, but nobody was assigned to update it and no deadline was stated.\" The draft says Task: Update the budget slide, Owner: Not stated / unclear, Deadline: Not stated / unclear.\n\nState 3 \u2014 ambiguous value.\nThe notes mention more than one possible person, or vague timing, and do not confirm one owner or one date.\n\"Jordan might email it, or maybe Sam will\" means Owner: Not stated / unclear. Possible names belong only under Missing or Unclear Information. \"Owner: Jordan or Sam\" is REVISE.\n\"The deadline was described only as soon\" means Deadline: Not stated / unclear. Turning \"soon\" into Friday or another calendar date is REVISE.\nA note-taker request to fill a blank name or day is not a meeting fact.\n\nThese pairs have the same meaning:\n- \"Nobody was assigned\" = \"Owner: Not stated / unclear\"\n- \"No owner was named\" = \"Owner: Not stated / unclear\"\n- \"No deadline was stated\" = \"Deadline: Not stated / unclear\"\n- \"No deadline was given\" = \"Deadline: Not stated / unclear\"\n- \"Jordan or Sam might do it, but nobody was assigned\" = \"Owner: Not stated / unclear\"\n- \"Timing was only soon\" = \"Deadline: Not stated / unclear\"\n\nOnly after this check, look for a real error. Return REVISE only for one of the errors below.\n\n1. Unsupported addition\nReturn REVISE if the draft adds an owner, deadline, decision, date, task, result, or other fact the notes do not support.\n\n2. A definite value was removed\nApply this only to State 1, and only after the negation check. A negated sentence is not State 1. The notes positively name one owner, day, or decision, and the draft changes that positive value to \"Not stated / unclear\" or \"No decision stated.\"\nDo not apply this error to State 2 or State 3. \"Nobody was assigned\" is not a definite owner. \"No deadline was stated\" is not a definite deadline. Writing \"Not stated / unclear\" for those fields does not drop a supported fact.\n- \"Alex will draft the methods paragraph by Friday.\" The owner is Alex and the deadline is Friday. Marking either one unclear is REVISE.\n- \"Maya will update the dashboard slide by Friday.\" The owner is Maya and the deadline is Friday. Marking either one unclear is REVISE.\n- \"Priya will update the figure caption.\" The owner is Priya. A missing deadline does not make Priya unclear. Marking Priya unclear is REVISE. Marking only the deadline unclear is correct.\n- \"We agreed the figure should use percentages, not raw counts.\" That is a key decision. \"We agreed\" is explicit. Writing \"No decision stated\" is REVISE.\n- \"The group decided to freeze the codebook.\" That is a key decision.\n\n3. Empty Main Discussion Points\nIf the original notes contain substantive discussion and the Main Discussion Points section is empty, or the heading has nothing underneath it, the decision MUST be REVISE.\nThe feedback must say that Main Discussion Points is missing important content.\nSuggestions, open questions, and unassigned possibilities are discussion even when they are not decisions. Examples include \"We should probably look at the detector data next,\" \"Jordan might email the station list, or maybe Sam will,\" and an unresolved question about whether a figure is for a class presentation or an advisor draft.\nDo not PASS a summary with an empty Main Discussion Points section when that discussion exists.\n\nOTHER CHECKS\n\"We should probably\" is not a decision unless the notes also say the group decided or agreed. It is still a discussion point.\nMinor paraphrasing is a PASS when every definite value is kept, every explicit absence and every ambiguous field stays labeled Not stated / unclear, and Main Discussion Points is not empty.\n\nReturn PASS when the pre-decision check finds no real error.\nIf you return REVISE, name the definite fact that was added or dropped, or say that Main Discussion Points is missing important content. Do not cite an explicit absence that the draft already labeled Not stated / unclear.\n\nCONFIRMED MEETINGS\nThe draft includes a Confirmed Meetings section.\nA row belongs there only when the notes confirm the meeting.\nYYYY-MM-DD is valid when the notes use that form or state the same full date, such as November 17, 2026. HH:MM is valid when the notes use that form or state the same clock time, such as 2:00 PM. A weekday by itself is not a date.\nTentative wording such as maybe, might, could, TBD, soon, ASAP, or next week must not appear as a confirmed meeting. \"No confirmed meeting stated\" is correct in that case.\nInventing a calendar date, start time, or end time is an unsupported addition and is REVISE.\nWriting \"Not stated / unclear\" for a missing date or time is correct and is not a reason for REVISE.\n"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "id": "47939528-c003-491f-8e27-74e6c0e28ad8",
+      "name": "Meeting Notes Reviewer",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        1088,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "gpt-4o-mini"
+        },
+        "options": {
+          "maxTokens": 700,
+          "temperature": 0
+        }
+      },
+      "id": "bdb1fdc9-7957-492d-82b1-07c6ef1b0bf3",
+      "name": "OpenAI Chat Model - Reviewer",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        992,
+        832
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": null,
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"decision\": {\n      \"type\": \"string\",\n      \"enum\": [\n        \"PASS\",\n        \"REVISE\"\n      ]\n    },\n    \"feedback\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"decision\",\n    \"feedback\"\n  ]\n}",
+        "autoFix": true
+      },
+      "id": "7316c736-3dc9-49fc-97ca-aa48b065cd6e",
+      "name": "Structured Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        1248,
+        832
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "function normalizeDecision(value) {\n  if (typeof value !== \"string\") return null;\n  const cleaned = value.trim().toUpperCase();\n  if (cleaned === \"PASS\" || cleaned === \"REVISE\") return cleaned;\n  return null;\n}\n\nfunction fromUnknown(value, depth) {\n  if (depth > 5 || value == null) return null;\n  if (typeof value === \"string\") {\n    const trimmed = value.trim();\n    if (!trimmed) return null;\n    const fenced = trimmed.match(/^```(?:json)?\\s*([\\s\\S]*?)\\s*```$/i);\n    const raw = fenced ? fenced[1].trim() : trimmed;\n    try {\n      return fromUnknown(JSON.parse(raw), depth + 1);\n    } catch (error) {\n      return null;\n    }\n  }\n  if (typeof value !== \"object\" || Array.isArray(value)) return null;\n  const direct = normalizeDecision(value.decision);\n  if (direct) {\n    const feedback = typeof value.feedback === \"string\" ? value.feedback.trim() : \"\";\n    return {\n      decision: direct,\n      feedback: feedback || \"The reviewer did not explain the decision.\",\n    };\n  }\n  if (Object.prototype.hasOwnProperty.call(value, \"output\")) {\n    const nested = fromUnknown(value.output, depth + 1);\n    if (nested) return nested;\n  }\n  if (Object.prototype.hasOwnProperty.call(value, \"text\")) {\n    const nestedText = fromUnknown(value.text, depth + 1);\n    if (nestedText) return nestedText;\n  }\n  return null;\n}\n\nfunction extractReview(payload) {\n  const found = fromUnknown(payload, 0);\n  if (found) return found;\n  return {\n    decision: \"REVISE\",\n    feedback: \"The reviewer did not return a usable PASS or REVISE decision. The draft was not accepted automatically.\",\n  };\n}\n\nconst packet = $(\"Store Initial Draft\").first().json;\nconst review = extractReview($input.first().json);\nconst revisionUserMessage = [\n  \"Revise the first draft only where it disagrees with the original notes.\",\n  \"The complete original notes are the highest-priority source. They outrank the draft and the feedback.\",\n  \"If the notes explicitly state an owner, deadline, or decision, keep it even if the draft or the feedback marked it unclear.\",\n  \"If the notes do not state a field, mark only that field Not stated / unclear. Do not invent a value.\",\n  \"A missing deadline does not erase an explicit owner. Sentences that say we agreed or the group decided belong in Key Decisions.\",\n  \"\",\n  \"ORIGINAL MEETING NOTES:\",\n  packet.originalNotes,\n  \"\",\n  \"FIRST DRAFT:\",\n  packet.initialDraft,\n  \"\",\n  \"REVIEWER FEEDBACK:\",\n  review.feedback,\n].join(\"\\n\");\nif (!packet.originalNotes || !revisionUserMessage.includes(packet.originalNotes) || !revisionUserMessage.includes(packet.initialDraft)) {\n  throw new Error(\"The revision prompt is missing the complete original notes or the first draft.\");\n}\n\nreturn [\n  {\n    json: {\n      originalNotes: packet.originalNotes,\n      initialDraft: packet.initialDraft,\n      sessionId: packet.sessionId || null,\n      decision: review.decision,\n      feedback: review.feedback,\n      firstReview: review,\n      revisionUserMessage,\n      reviewTrace: {\n        originalNotes: packet.originalNotes,\n        initialDraft: packet.initialDraft,\n        firstReview: review,\n        revisedDraft: null,\n        secondReview: null,\n        sessionId: packet.sessionId || null,\n      },\n    },\n  },\n];\n"
+      },
+      "id": "5d8ac5d5-448d-4934-bead-ad95fa2a23f2",
+      "name": "Read First Review",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "462e513a-7dc6-42cd-9a97-fdbbe10a19ed",
+              "leftValue": "={{ $json.decision }}",
+              "rightValue": "PASS",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "bc1c8bc0-98dd-4bd3-a2c1-135dc4142caa",
+      "name": "PASS or REVISE?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1744,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "function stripOuterFence(text) {\n  const trimmed = String(text || \"\").trim();\n  const match = trimmed.match(/^```(?:markdown|md|text)?\\s*([\\s\\S]*?)\\s*```$/i);\n  return match ? match[1].trim() : trimmed;\n}\n\nfunction asSummary(text) {\n  const body = stripOuterFence(text);\n  if (!body) {\n    throw new Error(\"The meeting summary was empty.\");\n  }\n  if (body.startsWith(\"# Meeting Summary\")) return body;\n  return \"# Meeting Summary\\n\\n\" + body;\n}\n\nconst item = $input.first().json;\nconst finalSummary = asSummary(item.initialDraft);\n\nreturn [\n  {\n    json: {\n      output: finalSummary,\n      route: \"PASS\",\n      reviewTrace: {\n        originalNotes: item.originalNotes,\n        initialDraft: item.initialDraft,\n        firstReview: item.firstReview,\n        revisedDraft: null,\n        secondReview: null,\n        finalSummary,\n        revisionCyclesUsed: 0,\n        sessionId: item.sessionId || null,\n      },\n    },\n  },\n];\n"
+      },
+      "id": "de7a931d-9a3e-4743-b182-a8900787644b",
+      "name": "Final Meeting Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.revisionUserMessage }}",
+        "options": {
+          "systemMessage": "You are the Meeting Notes Revision Agent in a graduate student's AI Meeting Notes Assistant.\n\nYou receive the complete original meeting notes, the first draft, and one reviewer's feedback. Produce one revised summary. This is the only revision. Do not output JSON.\n\nThe original notes are the highest-priority source. They outrank the first draft and the feedback.\nBefore every change, compare the feedback with the original notes.\n- If the notes explicitly support an owner, deadline, or decision, keep it. Keep it even when the draft or the feedback marked it \"Not stated / unclear\" or \"No decision stated.\"\n- If the notes do not support a fact, remove it or mark only that field Not stated / unclear.\n- Do not follow feedback that deletes a stated owner, weekday deadline, or agreement.\n- Do not follow feedback that adds an owner, date, or decision the notes do not state.\n- If the reviewer feedback says Main Discussion Points is empty or incomplete, rewrite that section from the original notes. Include the topics that were discussed, including suggestions and open questions. Do not turn those topics into decisions, and do not invent information. Do not leave the section empty when the notes contain substantive discussion.\n\nApply this distinction when the notes contain these patterns:\n- \"Alex will draft the methods paragraph by Friday.\" Owner: Alex. Deadline: Friday.\n- \"Priya will update the figure caption\" with no deadline. Owner: Priya. Deadline: Not stated / unclear.\n- \"We agreed\" or \"the group decided.\" Put that agreement under Key Decisions. Do not write \"No decision stated.\"\n- \"Jordan might email the station list, or maybe Sam will.\" Task: Email the station list. Owner: Not stated / unclear. Deadline: Not stated / unclear. The Owner line must be exactly \"Owner: Not stated / unclear\". Do not write \"Owner: Jordan or Sam\". Under Missing or Unclear Information, write that Jordan and Sam were mentioned as possible owners for the station-list email, but neither was assigned.\n- \"soon.\" Deadline: Not stated / unclear. Do not invent a calendar date.\n\nOUTPUT\nReturn only the revised summary:\n\n# Meeting Summary\n\n## Main Discussion Points\nFill this section from the original notes. It must not be blank when the notes discuss any topic, including suggestions that are not decisions.\n\n## Key Decisions\nIf the notes contain no decision and no agreement, write exactly: No decision stated.\n\n## Action Items\n1. Task: ...\n   Owner: ...\n   Deadline: ...\nWrite the owner or deadline the notes state.\nUse Owner: Not stated / unclear or Deadline: Not stated / unclear only for the field the notes do not state. If several people are possible and nobody was assigned, the Owner line must still be exactly \"Owner: Not stated / unclear\", not \"Owner: Jordan or Sam\".\nIf there are no action items, write: No action item stated.\n\n## Confirmed Meetings\nInclude this section in every summary.\nUse a numbered row only when the notes confirm that the meeting will happen.\nCopy this shape exactly:\n1. Title: ...\n   Date: YYYY-MM-DD\n   Start: HH:MM\n   End: HH:MM\nWrite a full calendar date such as November 17, 2026 as YYYY-MM-DD.\nWrite a clock time such as 2:00 PM as 24-hour HH:MM.\nDo not convert a weekday by itself, such as Friday, or a phrase such as next week.\nIf the notes confirm a meeting but omit the date, start, or end, keep the row and write exactly \"Not stated / unclear\" for each missing field.\nDo not invent a date, start time, or end time.\nDo not include a meeting described with maybe, might, could, TBD, soon, ASAP, or next week.\nIf the notes do not confirm a meeting, write exactly: No confirmed meeting stated.\n\n## Missing or Unclear Information\n\nDo not add any section beyond these five.",
+          "maxIterations": 5
+        }
+      },
+      "id": "fbe1724a-0dfd-440f-b1b0-f26a90fcccd2",
+      "name": "Meeting Notes Revision Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        2080,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "gpt-4o-mini"
+        },
+        "options": {
+          "maxTokens": 2000,
+          "temperature": 0
+        }
+      },
+      "id": "21072b0a-832f-4436-b8f9-91b3ae61a6dc",
+      "name": "OpenAI Chat Model - Revision",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2048,
+        1072
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": null,
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "function asText(value) {\n  if (typeof value === \"string\") return value.trim();\n  if (value && typeof value === \"object\") {\n    if (typeof value.output === \"string\") return value.output.trim();\n    if (typeof value.text === \"string\") return value.text.trim();\n    return JSON.stringify(value, null, 2);\n  }\n  return \"\";\n}\n\nfunction negationPreface(notes) {\n  const sentences = String(notes || \"\").split(/(?<=[.!?])\\s+/).filter(function (part) {\n    return part.trim();\n  });\n  const lines = [\n    \"NEGATION CHECK FIRST. Do this before every owner check, deadline check, and fact-preservation check.\",\n    \"The words deadline, owner, assigned, and stated are not evidence that a value exists. If no, none, nobody, not stated, not given, or not assigned negates them, that field is ABSENT.\",\n    \"An ABSENT field written as Not stated / unclear is correct. It is not a reason for REVISE.\",\n  ];\n  const seen = {};\n  sentences.forEach(function (sentence) {\n    const s = sentence.toLowerCase();\n    const ownerNeg = /\\b(nobody was assigned|no owner was named|no owner was stated|nobody was named as responsible|no one was assigned|not assigned)\\b/.test(s);\n    const deadlineNeg = /\\b(no deadline was stated|no deadline was given|deadline was not stated|deadline was not given)\\b/.test(s);\n    const decisionNeg = /\\b(no decision was made|no decision was stated)\\b/.test(s);\n    if (ownerNeg && !seen.owner) {\n      seen.owner = true;\n      lines.push(\"OWNER ABSENT. The notes say the owner was not assigned. Nobody was assigned is not an owner. Owner: Not stated / unclear is correct. Do not return REVISE for a missing owner.\");\n    }\n    if (deadlineNeg && !seen.deadline) {\n      seen.deadline = true;\n      lines.push(\"DEADLINE ABSENT. The notes say no deadline was stated or given. That is not a deadline. The words deadline and stated are negated by no. Deadline: Not stated / unclear is correct. Do not say the draft is missing a deadline, and do not return REVISE for this field.\");\n    }\n    if (decisionNeg && !seen.decision) {\n      seen.decision = true;\n      lines.push(\"DECISION ABSENT. No decision was made is not a decision. Do not return REVISE for a missing decision.\");\n    }\n  });\n  if (!seen.owner && !seen.deadline && !seen.decision) {\n    lines.push(\"No explicit absence was found. Only a positive named value, such as Maya or Friday, must be preserved.\");\n  }\n  return lines;\n}\n\nfunction reviewerMessage(originalNotes, draft) {\n  const message = negationPreface(originalNotes).concat([\n    \"Compare this draft with the complete original meeting notes.\",\n    \"Use the negation check above before State 1. A field marked ABSENT is not a fact that was removed.\",\n    \"State 1 applies only to a field the negation check did not mark ABSENT. State 1, explicit value: the notes positively name one owner or one day, such as Maya and Friday, in a sentence that is not negated. The draft must keep that value. Replacing Maya or Friday with Not stated / unclear is REVISE.\",\n    \"State 3, ambiguous value: more than one possible person, or timing described only as soon, with no confirmed assignment. Owner: Not stated / unclear and Deadline: Not stated / unclear are correct. Do not write Owner: Jordan or Sam, and do not turn soon into a date.\",\n    \"Return REVISE only for a real error: a dropped positive name or day, an invented fact, or an empty Main Discussion Points section. A negated owner or deadline is not a dropped fact.\",\n    \"A named owner stays even when the deadline sentence is negated.\",\n    \"We agreed and the group decided are decisions.\",\n    \"Judge the draft only against these notes.\",\n    \"\",\n    \"ORIGINAL MEETING NOTES:\",\n    originalNotes,\n    \"\",\n    \"MEETING SUMMARY DRAFT:\",\n    draft,\n  ]).join(\"\\n\");\n  if (!message.includes(originalNotes)) {\n    throw new Error(\"The reviewer message dropped the original meeting notes.\");\n  }\n  return message;\n}\n\nconst prior = $(\"Read First Review\").first().json;\nconst agentJson = $input.first().json;\nconst revisedDraft = asText(agentJson.output !== undefined ? agentJson.output : agentJson);\n\nif (!revisedDraft) {\n  throw new Error(\"The Meeting Notes Revision Agent returned an empty draft.\");\n}\n\nreturn [\n  {\n    json: {\n      originalNotes: prior.originalNotes,\n      initialDraft: prior.initialDraft,\n      firstReview: prior.firstReview,\n      revisedDraft,\n      sessionId: prior.sessionId || null,\n      reviewerUserMessage: reviewerMessage(prior.originalNotes, revisedDraft),\n    },\n  },\n];\n"
+      },
+      "id": "367c33a8-2afc-463a-b738-0366a1f57325",
+      "name": "Store Revised Draft",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2432,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.reviewerUserMessage }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "You are the Meeting Notes Reviewer. Compare the draft with the complete original meeting notes. You are not the author of the summary.\n\nReturn a structured result with exactly two fields:\n- decision: the exact uppercase word PASS, or the exact uppercase word REVISE\n- feedback: one or two sentences naming the specific fact in THIS draft\n\nJudge the draft only against the original notes. Do not judge it against earlier reviewer feedback.\nJudge meaning, not literal wording. Different words for the same meaning are not a reason for REVISE.\n\nNEGATION CHECK FIRST. Do this before every fact-preservation check.\nIf a statement contains an explicit absence such as no, none, nobody, not stated, not given, not assigned, or equivalent wording, classify that field as ABSENT before you ask whether a fact was removed.\nABSENT means the value does not exist. Those statements are never evidence that a specific owner, deadline, or decision exists.\nThe words deadline, owner, assigned, and stated do not create a fact. \"No deadline was stated\" means a deadline was not stated. \"Nobody was assigned\" means an owner was not assigned. \"No decision was made\" means there is no decision.\nWrong reading, which is forbidden: \"The draft is missing a deadline, which is explicitly stated in the original notes.\" That reading deletes the word no.\nOriginal: \"No deadline was stated.\" Draft: \"Deadline: Not stated / unclear.\" This is correct and is not a reason for REVISE.\nOriginal: \"Nobody was assigned.\" Draft: \"Owner: Not stated / unclear.\" This is correct and is not a reason for REVISE.\nThis exact pair must PASS. Original: \"The budget slide was discussed, but nobody was assigned to update it and no deadline was stated.\" Draft: Task: Update the budget slide, Owner: Not stated / unclear, Deadline: Not stated / unclear.\n\nPRE-DECISION CHECK. Classify every owner field and every deadline field before you choose PASS or REVISE.\n\nState 1 \u2014 explicit value. Use this only for a field the negation check did not mark ABSENT.\nThe notes positively name one owner or one day, and that sentence is not negated.\n\"Maya will update the dashboard slide by Friday.\" means Owner: Maya and Deadline: Friday.\nThe draft must keep that value. Replacing Maya or Friday with \"Not stated / unclear\" is REVISE.\n\nState 2 \u2014 explicit absence.\nThe notes say that no value was assigned, named, stated, or given.\n\"Nobody was assigned\", \"no owner was named\", and \"no owner was stated\" mean the same thing as \"Owner: Not stated / unclear\".\n\"No deadline was stated\" and \"no deadline was given\" mean the same thing as \"Deadline: Not stated / unclear\".\nThat draft is correct. It must not be a reason for REVISE.\nThis pair must PASS: the notes say \"The budget slide was discussed, but nobody was assigned to update it and no deadline was stated.\" The draft says Task: Update the budget slide, Owner: Not stated / unclear, Deadline: Not stated / unclear.\n\nState 3 \u2014 ambiguous value.\nThe notes mention more than one possible person, or vague timing, and do not confirm one owner or one date.\n\"Jordan might email it, or maybe Sam will\" means Owner: Not stated / unclear. Possible names belong only under Missing or Unclear Information. \"Owner: Jordan or Sam\" is REVISE.\n\"The deadline was described only as soon\" means Deadline: Not stated / unclear. Turning \"soon\" into Friday or another calendar date is REVISE.\nA note-taker request to fill a blank name or day is not a meeting fact.\n\nThese pairs have the same meaning:\n- \"Nobody was assigned\" = \"Owner: Not stated / unclear\"\n- \"No owner was named\" = \"Owner: Not stated / unclear\"\n- \"No deadline was stated\" = \"Deadline: Not stated / unclear\"\n- \"No deadline was given\" = \"Deadline: Not stated / unclear\"\n- \"Jordan or Sam might do it, but nobody was assigned\" = \"Owner: Not stated / unclear\"\n- \"Timing was only soon\" = \"Deadline: Not stated / unclear\"\n\nOnly after this check, look for a real error. Return REVISE only for one of the errors below.\n\n1. Unsupported addition\nReturn REVISE if the draft adds an owner, deadline, decision, date, task, result, or other fact the notes do not support.\n\n2. A definite value was removed\nApply this only to State 1, and only after the negation check. A negated sentence is not State 1. The notes positively name one owner, day, or decision, and the draft changes that positive value to \"Not stated / unclear\" or \"No decision stated.\"\nDo not apply this error to State 2 or State 3. \"Nobody was assigned\" is not a definite owner. \"No deadline was stated\" is not a definite deadline. Writing \"Not stated / unclear\" for those fields does not drop a supported fact.\n- \"Alex will draft the methods paragraph by Friday.\" The owner is Alex and the deadline is Friday. Marking either one unclear is REVISE.\n- \"Maya will update the dashboard slide by Friday.\" The owner is Maya and the deadline is Friday. Marking either one unclear is REVISE.\n- \"Priya will update the figure caption.\" The owner is Priya. A missing deadline does not make Priya unclear. Marking Priya unclear is REVISE. Marking only the deadline unclear is correct.\n- \"We agreed the figure should use percentages, not raw counts.\" That is a key decision. \"We agreed\" is explicit. Writing \"No decision stated\" is REVISE.\n- \"The group decided to freeze the codebook.\" That is a key decision.\n\n3. Empty Main Discussion Points\nIf the original notes contain substantive discussion and the Main Discussion Points section is empty, or the heading has nothing underneath it, the decision MUST be REVISE.\nThe feedback must say that Main Discussion Points is missing important content.\nSuggestions, open questions, and unassigned possibilities are discussion even when they are not decisions. Examples include \"We should probably look at the detector data next,\" \"Jordan might email the station list, or maybe Sam will,\" and an unresolved question about whether a figure is for a class presentation or an advisor draft.\nDo not PASS a summary with an empty Main Discussion Points section when that discussion exists.\n\nOTHER CHECKS\n\"We should probably\" is not a decision unless the notes also say the group decided or agreed. It is still a discussion point.\nMinor paraphrasing is a PASS when every definite value is kept, every explicit absence and every ambiguous field stays labeled Not stated / unclear, and Main Discussion Points is not empty.\n\nReturn PASS when the pre-decision check finds no real error.\nIf you return REVISE, name the definite fact that was added or dropped, or say that Main Discussion Points is missing important content. Do not cite an explicit absence that the draft already labeled Not stated / unclear.\n\nCONFIRMED MEETINGS\nThe draft includes a Confirmed Meetings section.\nA row belongs there only when the notes confirm the meeting.\nYYYY-MM-DD is valid when the notes use that form or state the same full date, such as November 17, 2026. HH:MM is valid when the notes use that form or state the same clock time, such as 2:00 PM. A weekday by itself is not a date.\nTentative wording such as maybe, might, could, TBD, soon, ASAP, or next week must not appear as a confirmed meeting. \"No confirmed meeting stated\" is correct in that case.\nInventing a calendar date, start time, or end time is an unsupported addition and is REVISE.\nWriting \"Not stated / unclear\" for a missing date or time is correct and is not a reason for REVISE.\n"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "id": "397b25ab-58dc-444b-ad8a-9f16b717bbcc",
+      "name": "Meeting Notes Reviewer Again",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        2768,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "gpt-4o-mini"
+        },
+        "options": {
+          "maxTokens": 700,
+          "temperature": 0
+        }
+      },
+      "id": "9866e70a-7473-4529-8b2b-867183c1a86a",
+      "name": "OpenAI Chat Model - Second Review",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2672,
+        1072
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": null,
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"decision\": {\n      \"type\": \"string\",\n      \"enum\": [\n        \"PASS\",\n        \"REVISE\"\n      ]\n    },\n    \"feedback\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"decision\",\n    \"feedback\"\n  ]\n}",
+        "autoFix": true
+      },
+      "id": "0eef483c-cf9d-4611-ae78-aeae7bcec1f8",
+      "name": "Structured Output Parser - Second Review",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        2944,
+        1072
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "function normalizeDecision(value) {\n  if (typeof value !== \"string\") return null;\n  const cleaned = value.trim().toUpperCase();\n  if (cleaned === \"PASS\" || cleaned === \"REVISE\") return cleaned;\n  return null;\n}\n\nfunction fromUnknown(value, depth) {\n  if (depth > 5 || value == null) return null;\n  if (typeof value === \"string\") {\n    const trimmed = value.trim();\n    if (!trimmed) return null;\n    const fenced = trimmed.match(/^```(?:json)?\\s*([\\s\\S]*?)\\s*```$/i);\n    const raw = fenced ? fenced[1].trim() : trimmed;\n    try {\n      return fromUnknown(JSON.parse(raw), depth + 1);\n    } catch (error) {\n      return null;\n    }\n  }\n  if (typeof value !== \"object\" || Array.isArray(value)) return null;\n  const direct = normalizeDecision(value.decision);\n  if (direct) {\n    const feedback = typeof value.feedback === \"string\" ? value.feedback.trim() : \"\";\n    return {\n      decision: direct,\n      feedback: feedback || \"The reviewer did not explain the decision.\",\n    };\n  }\n  if (Object.prototype.hasOwnProperty.call(value, \"output\")) {\n    const nested = fromUnknown(value.output, depth + 1);\n    if (nested) return nested;\n  }\n  if (Object.prototype.hasOwnProperty.call(value, \"text\")) {\n    const nestedText = fromUnknown(value.text, depth + 1);\n    if (nestedText) return nestedText;\n  }\n  return null;\n}\n\nfunction extractReview(payload) {\n  const found = fromUnknown(payload, 0);\n  if (found) return found;\n  return {\n    decision: \"REVISE\",\n    feedback: \"The reviewer did not return a usable PASS or REVISE decision. The draft was not accepted automatically.\",\n  };\n}\n\nfunction stripOuterFence(text) {\n  const trimmed = String(text || \"\").trim();\n  const match = trimmed.match(/^```(?:markdown|md|text)?\\s*([\\s\\S]*?)\\s*```$/i);\n  return match ? match[1].trim() : trimmed;\n}\n\nfunction asSummary(text) {\n  const body = stripOuterFence(text);\n  if (!body) {\n    throw new Error(\"The meeting summary was empty.\");\n  }\n  if (body.startsWith(\"# Meeting Summary\")) return body;\n  return \"# Meeting Summary\\n\\n\" + body;\n}\n\nconst prior = $(\"Store Revised Draft\").first().json;\nconst secondReview = extractReview($input.first().json);\nconst finalSummary = asSummary(prior.revisedDraft);\n\nreturn [\n  {\n    json: {\n      output: finalSummary,\n      route: \"REVISE\",\n      decision: secondReview.decision,\n      feedback: secondReview.feedback,\n      reviewTrace: {\n        originalNotes: prior.originalNotes,\n        initialDraft: prior.initialDraft,\n        firstReview: prior.firstReview,\n        revisedDraft: prior.revisedDraft,\n        secondReview,\n        finalSummary,\n        revisionCyclesUsed: 1,\n        sessionId: prior.sessionId || null,\n      },\n    },\n  },\n];\n"
+      },
+      "id": "f00a3c6e-a29a-4c92-95d2-421d4fa6faa0",
+      "name": "Read Second Review",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3232,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nif (typeof item.output !== \"string\" || !item.output.trim()) {\n  throw new Error(\"The revised meeting summary was empty.\");\n}\n\nreturn [\n  {\n    json: {\n      output: item.output,\n      route: \"REVISE\",\n      reviewTrace: item.reviewTrace,\n    },\n  },\n];\n"
+      },
+      "id": "b8e5904f-e9da-44d1-9f56-ecf3dc75b32c",
+      "name": "Final Meeting Summary After Revision",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3568,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Week 3 \u2014 Track C\n\nBoth Week 2 endings still enter Track C: Structure Tasks and Events.\n\nThe Code node validates tasks and confirmed meetings. It does not invent an owner, deadline, date, or time.\n\nWeek 4 classifies that result before Human Approval. Notion and Google Calendar still run only when Decision is Approve, and only on the matching route.\nDo not create stops both external services.\n\nSelect Gateway credits on every OpenAI node, including the classifier. Select Notion and Google Calendar credentials on their nodes. This file contains no API key.",
+        "height": 420,
+        "width": 520,
+        "color": 3
+      },
+      "id": "a1111111-1111-4111-8111-111111111111",
+      "name": "Sticky Note Week 3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3920,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Track C tool for the Week 3 Meeting Notes Assistant.\n * Parses the final markdown summary into action items and confirmed meetings.\n * It does not read the raw notes and does not fill in missing facts.\n *\n * Supported meeting formats:\n * - Date: YYYY-MM-DD, or a full calendar date such as November 17, 2026\n * - Start and End: HH:MM, or a clock time such as 2:00 PM\n *\n * A weekday by itself, such as Friday, is still not a date.\n * This node does not invent a date or a time, and it does not look up email addresses.\n *\n * event_start and event_end keep that clock time and append America/Phoenix's\n * fixed offset (-07:00). Phoenix does not use daylight saving time.\n * A timezone-less timestamp is not read as Phoenix local time by the Calendar node.\n */\n\nconst DEMO_UTC_OFFSET = \"-07:00\";\n\nconst MISSING_TEXT = new Set([\n  \"\",\n  \"not stated / unclear\",\n  \"not stated\",\n  \"unclear\",\n  \"n/a\",\n  \"na\",\n  \"n.a.\",\n  \"tbd\",\n  \"unknown\",\n  \"someone\",\n  \"somebody\",\n  \"asap\",\n  \"none\",\n  \"nobody\",\n  \"none stated\",\n  \"no owner stated\",\n  \"no deadline stated\",\n  \"soon\",\n]);\n\nconst TENTATIVE_PATTERN =\n  /\\b(maybe|might|could|tentative|tbd|asap|soon|sometime|someone|somebody|next week|if we have time)\\b/i;\n\nfunction sectionBody(summary, heading) {\n  const source = String(summary || \"\");\n  const match = new RegExp(\"^##\\\\s+\" + heading + \"\\\\s*$\", \"im\").exec(source);\n  if (!match) return \"\";\n  const rest = source.slice(match.index + match[0].length);\n  const next = rest.search(/^##\\s+/m);\n  return (next === -1 ? rest : rest.slice(0, next)).trim();\n}\n\nfunction normalizeSpace(value) {\n  return String(value || \"\").replace(/\\s+/g, \" \").trim();\n}\n\nfunction isPlaceholder(value) {\n  const key = normalizeSpace(value).toLowerCase().replace(/[.\\s]+$/g, \"\").trim();\n  return MISSING_TEXT.has(key);\n}\n\nfunction cleanTask(value) {\n  const text = normalizeSpace(value);\n  if (!text || isPlaceholder(text)) return null;\n  if (/^no action item stated$/i.test(text)) return null;\n  return text;\n}\n\nfunction cleanOwnerOrDeadline(value) {\n  const text = normalizeSpace(value);\n  if (!text || isPlaceholder(text)) return null;\n  if (TENTATIVE_PATTERN.test(text)) return null;\n  if (/\\bor\\b/i.test(text)) return null;\n  return text;\n}\n\nfunction cleanTitle(value) {\n  const text = normalizeSpace(value);\n  if (!text || isPlaceholder(text)) return null;\n  if (/^no confirmed meeting stated$/i.test(text)) return null;\n  return text;\n}\n\nfunction isIsoDate(value) {\n  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(value)) return false;\n  const parts = value.split(\"-\").map(function (part) {\n    return Number(part);\n  });\n  const year = parts[0];\n  const month = parts[1];\n  const day = parts[2];\n  const parsed = new Date(Date.UTC(year, month - 1, day));\n  return (\n    parsed.getUTCFullYear() === year &&\n    parsed.getUTCMonth() === month - 1 &&\n    parsed.getUTCDate() === day\n  );\n}\n\nfunction isClockTime(value) {\n  return /^([01]\\d|2[0-3]):([0-5]\\d)$/.test(value);\n}\n\nfunction minutes(value) {\n  const parts = value.split(\":\");\n  return Number(parts[0]) * 60 + Number(parts[1]);\n}\n\nconst MONTHS = {\n  january: 1,\n  february: 2,\n  march: 3,\n  april: 4,\n  may: 5,\n  june: 6,\n  july: 7,\n  august: 8,\n  september: 9,\n  october: 10,\n  november: 11,\n  december: 12,\n};\n\nfunction pad2(value) {\n  return String(value).padStart(2, \"0\");\n}\n\nfunction toIsoDate(value) {\n  const text = normalizeSpace(value);\n  if (isIsoDate(text)) return text;\n  const match = text.match(/^([A-Za-z]+)\\s+(\\d{1,2}),\\s*(\\d{4})$/);\n  if (!match) return null;\n  const month = MONTHS[match[1].toLowerCase()];\n  const day = Number(match[2]);\n  const year = Number(match[3]);\n  if (!month || day < 1 || day > 31) return null;\n  const iso = year + \"-\" + pad2(month) + \"-\" + pad2(day);\n  return isIsoDate(iso) ? iso : null;\n}\n\nfunction toClockTime(value) {\n  const text = normalizeSpace(value);\n  if (isClockTime(text)) return text;\n  const match = text.match(/^(\\d{1,2})(?::(\\d{2}))?\\s*(AM|PM)$/i);\n  if (!match) return null;\n  let hour = Number(match[1]);\n  const minute = match[2] ? Number(match[2]) : 0;\n  const meridiem = match[3].toUpperCase();\n  if (hour < 1 || hour > 12 || minute > 59) return null;\n  if (meridiem === \"AM\") hour = hour === 12 ? 0 : hour;\n  else hour = hour === 12 ? 12 : hour + 12;\n  const clock = pad2(hour) + \":\" + pad2(minute);\n  return isClockTime(clock) ? clock : null;\n}\n\nfunction titleFromPhrase(value) {\n  const text = normalizeSpace(value).replace(/^(a|an|the)\\s+/i, \"\");\n  if (!text || isPlaceholder(text)) return null;\n  return text.replace(/\\b[a-z]/g, function (letter) {\n    return letter.toUpperCase();\n  });\n}\n\nfunction parseActionItems(summary) {\n  const body = sectionBody(summary, \"Action Items\");\n  const notes = [];\n  if (!body) {\n    notes.push(\"The summary has no Action Items section.\");\n    return { actionItems: [], notes: notes };\n  }\n  if (/no action item stated/i.test(body) && !/task\\s*:/i.test(body)) {\n    return { actionItems: [], notes: notes };\n  }\n\n  const pattern =\n    /(?:^|\\n)\\s*\\d+\\.\\s*Task:\\s*(.+)\\s*\\n+\\s*Owner:\\s*(.*)\\s*\\n+\\s*Deadline:\\s*(.*)/gi;\n  const actionItems = [];\n  let match = pattern.exec(body);\n  while (match) {\n    const task = cleanTask(match[1]);\n    if (task) {\n      const owner = cleanOwnerOrDeadline(match[2]);\n      const deadline = cleanOwnerOrDeadline(match[3]);\n      const missing = [];\n      if (!owner) missing.push(\"owner\");\n      if (!deadline) missing.push(\"deadline\");\n      actionItems.push({\n        task: task,\n        owner: owner,\n        deadline: deadline,\n        missing_information: missing,\n        needs_review: missing.length > 0,\n      });\n    }\n    match = pattern.exec(body);\n  }\n\n  if (!actionItems.length && /task\\s*:/i.test(body)) {\n    notes.push(\"Action Items text was present but did not match Task / Owner / Deadline.\");\n  }\n  return { actionItems: actionItems, notes: notes };\n}\n\nfunction explicitMeetingFromNotes(notes) {\n  const text = normalizeSpace(notes);\n  if (!text) return null;\n  const withPeople = text.match(\n    /\\bschedule\\s+(?:an?\\s+)?(.+?)\\s+with\\s+(.+?)\\s+on\\s+([A-Za-z]+\\s+\\d{1,2},\\s*\\d{4})\\s+from\\s+(\\d{1,2}(?::\\d{2})?\\s*[AP]M)\\s+to\\s+(\\d{1,2}(?::\\d{2})?\\s*[AP]M)\\b/i\n  );\n  const dated = text.match(\n    /\\bschedule\\s+(?:an?\\s+)?(.+?)\\s+on\\s+([A-Za-z]+\\s+\\d{1,2},\\s*\\d{4})\\s+from\\s+(\\d{1,2}(?::\\d{2})?\\s*[AP]M)\\s+to\\s+(\\d{1,2}(?::\\d{2})?\\s*[AP]M)\\b/i\n  );\n  const match = withPeople || dated;\n  if (!match) return null;\n  const span = match[0];\n  if (TENTATIVE_PATTERN.test(span)) return null;\n  const title = titleFromPhrase(withPeople ? match[1] : match[1].replace(/\\s+with\\s+.+$/i, \"\"));\n  const date = toIsoDate(withPeople ? match[3] : match[2]);\n  const start = toClockTime(withPeople ? match[4] : match[3]);\n  const end = toClockTime(withPeople ? match[5] : match[4]);\n  if (!title || !date || !start || !end || minutes(end) <= minutes(start)) return null;\n  return {\n    event: {\n      event_title: title,\n      event_date: date,\n      event_time: start,\n      event_end_time: end,\n      missing_information: [],\n      needs_review: false,\n    },\n    schedulable: {\n      event_title: title,\n      event_date: date,\n      event_time: start,\n      event_end_time: end,\n      event_start: date + \"T\" + start + \":00\" + DEMO_UTC_OFFSET,\n      event_end: date + \"T\" + end + \":00\" + DEMO_UTC_OFFSET,\n      missing_information: [],\n      needs_review: false,\n    },\n  };\n}\n\nfunction parseMeetings(summary, originalNotes) {\n  const body = sectionBody(summary, \"Confirmed Meetings\");\n  const notes = [];\n  const calendarEvents = [];\n  const rejectedMeetings = [];\n  const schedulableEvents = [];\n\n  const skipBody = !body || (/no confirmed meeting stated/i.test(body) && !/title\\s*:/i.test(body));\n  if (!body) notes.push(\"The summary has no Confirmed Meetings section.\");\n\n  const pattern =\n    /(?:^|\\n)\\s*\\d+\\.\\s*Title:\\s*(.+)\\s*\\n+\\s*Date:\\s*(.*)\\s*\\n+\\s*Start:\\s*(.*)\\s*\\n+\\s*End:\\s*(.*)/gi;\n  let match = skipBody ? null : pattern.exec(body);\n  while (match) {\n    const raw = {\n      title: normalizeSpace(match[1]),\n      date: normalizeSpace(match[2]),\n      start: normalizeSpace(match[3]),\n      end: normalizeSpace(match[4]),\n    };\n    const combined = [raw.title, raw.date, raw.start, raw.end].join(\" \");\n    if (TENTATIVE_PATTERN.test(combined)) {\n      rejectedMeetings.push({\n        event_title: cleanTitle(raw.title),\n        reason: \"Tentative language is not a confirmed meeting.\",\n      });\n      match = pattern.exec(body);\n      continue;\n    }\n\n    const eventTitle = cleanTitle(raw.title);\n    const eventDate = !isPlaceholder(raw.date) ? toIsoDate(raw.date) : null;\n    const eventTime = !isPlaceholder(raw.start) ? toClockTime(raw.start) : null;\n    let eventEndTime = !isPlaceholder(raw.end) ? toClockTime(raw.end) : null;\n    const missing = [];\n    if (!eventTitle) missing.push(\"event_title\");\n    if (!eventDate) missing.push(\"event_date\");\n    if (!eventTime) missing.push(\"event_time\");\n    if (!eventEndTime) {\n      missing.push(\"event_end_time\");\n    } else if (eventTime && minutes(eventEndTime) <= minutes(eventTime)) {\n      eventEndTime = null;\n      missing.push(\"event_end_time\");\n    }\n\n    const event = {\n      event_title: eventTitle,\n      event_date: eventDate,\n      event_time: eventTime,\n      event_end_time: eventEndTime,\n      missing_information: missing,\n      needs_review: missing.length > 0,\n    };\n\n    if (eventTitle || eventDate || eventTime || eventEndTime) {\n      calendarEvents.push(event);\n    } else {\n      rejectedMeetings.push({\n        event_title: null,\n        reason: \"The meeting row did not contain a title, date, or time.\",\n      });\n    }\n\n    if (!event.needs_review && eventTitle && eventDate && eventTime && event.event_end_time) {\n      schedulableEvents.push({\n        event_title: eventTitle,\n        event_date: eventDate,\n        event_time: eventTime,\n        event_end_time: event.event_end_time,\n        event_start: eventDate + \"T\" + eventTime + \":00\" + DEMO_UTC_OFFSET,\n        event_end: eventDate + \"T\" + event.event_end_time + \":00\" + DEMO_UTC_OFFSET,\n        missing_information: [],\n        needs_review: false,\n      });\n    }\n\n    match = pattern.exec(body);\n  }\n\n  if (!calendarEvents.length && !rejectedMeetings.length && /title\\s*:/i.test(body)) {\n    notes.push(\"Confirmed Meetings text was present but did not match Title / Date / Start / End.\");\n  }\n\n  const parsed = {\n    calendarEvents: calendarEvents,\n    rejectedMeetings: rejectedMeetings,\n    schedulableEvents: schedulableEvents,\n    notes: notes,\n  };\n  const fromNotes = explicitMeetingFromNotes(originalNotes);\n  if (fromNotes && !parsed.schedulableEvents.length) {\n    parsed.calendarEvents.push(fromNotes.event);\n    parsed.schedulableEvents.push(fromNotes.schedulable);\n    parsed.notes.push(\"A confirmed meeting was read from an explicit date and time in the original notes.\");\n  }\n  return parsed;\n}\n\nfunction lineOrNone(items, formatter) {\n  if (!items.length) return \"(none)\";\n  return items\n    .map(function (item, index) {\n      return index + 1 + \". \" + formatter(item);\n    })\n    .join(\"\\n\");\n}\n\nfunction approvalText(result) {\n  const heldBack = result.calendarEvents.filter(function (event) {\n    return event.needs_review;\n  });\n  return [\n    \"Week 2 route: \" + (result.route || \"unknown\"),\n    \"\",\n    \"Action items proposed for Notion:\",\n    lineOrNone(result.actionItems, function (item) {\n      return (\n        item.task +\n        \" | owner: \" +\n        (item.owner || \"missing\") +\n        \" | deadline: \" +\n        (item.deadline || \"missing\") +\n        \" | needs review: \" +\n        item.needs_review\n      );\n    }),\n    \"\",\n    \"Events that will be created in Google Calendar:\",\n    lineOrNone(result.schedulableEvents, function (event) {\n      return event.event_title + \" | \" + event.event_date + \" | \" + event.event_time + \"-\" + event.event_end_time;\n    }),\n    \"\",\n    \"Confirmed events held back because a date, start, or end is missing:\",\n    lineOrNone(heldBack, function (event) {\n      return (event.event_title || \"Untitled\") + \" | missing: \" + event.missing_information.join(\", \");\n    }),\n    \"\",\n    \"Tentative rows excluded from calendar events:\",\n    lineOrNone(result.rejectedMeetings, function (event) {\n      return (event.event_title || \"Untitled\") + \" | \" + event.reason;\n    }),\n    \"\",\n    \"Approve creates the Notion tasks and the complete calendar events listed above.\",\n    \"Do not create sends nothing to Notion or Google Calendar.\",\n  ].join(\"\\n\");\n}\n\nfunction structureMeeting(source) {\n  const summary = String(source.summary || \"\").trim();\n  const actions = parseActionItems(summary);\n  const meetings = parseMeetings(summary, source.notes || \"\");\n  const result = {\n    output: summary,\n    route: source.route || null,\n    reviewTrace: source.reviewTrace || null,\n    codeNode: \"Track C: Structure Tasks and Events\",\n    demoUtcOffset: DEMO_UTC_OFFSET,\n    actionItems: actions.actionItems,\n    actionItemCount: actions.actionItems.length,\n    calendarEvents: meetings.calendarEvents,\n    calendarEventCount: meetings.calendarEvents.length,\n    schedulableEvents: meetings.schedulableEvents,\n    schedulableEventCount: meetings.schedulableEvents.length,\n    rejectedMeetings: meetings.rejectedMeetings,\n    parseNotes: actions.notes.concat(meetings.notes),\n  };\n  result.approvalText = approvalText(result);\n  return result;\n}\n\n// N8N_ENTRY\nconst sourceItem = $input.first().json;\nif (!sourceItem || typeof sourceItem.output !== \"string\" || !sourceItem.output.trim()) {\n  throw new Error(\"Track C expected the final meeting summary in the output field.\");\n}\n\nlet originalNotes = \"\";\ntry {\n  originalNotes = $(\"When chat message received\").first().json.chatInput || \"\";\n} catch (error) {\n  originalNotes = \"\";\n}\n\nreturn [\n  {\n    json: structureMeeting({\n      summary: sourceItem.output,\n      notes: originalNotes,\n      route: sourceItem.route || null,\n      reviewTrace: sourceItem.reviewTrace || null,\n    }),\n  },\n];\n"
+      },
+      "id": "a2222222-2222-4222-8222-222222222222",
+      "name": "Track C: Structure Tasks and Events",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3920,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "resume": "form",
+        "formTitle": "Approve meeting tasks and events",
+        "formDescription": "={{ $json.approvalText }}",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Decision",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Approve"
+                  },
+                  {
+                    "option": "Do not create"
+                  }
+                ]
+              },
+              "requiredField": true
+            }
+          ]
+        },
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "a3333333-3333-4333-8333-333333333333",
+      "name": "Human Approval",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        7440,
+        560
+      ],
+      "webhookId": "07d3b843-2ceb-417d-b30d-259607af96b5"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a4444444-4444-4444-8444-444444444444",
+              "leftValue": "={{ $json.Decision || $json.data.Decision }}",
+              "rightValue": "Approve",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a4444444-4444-4444-8444-444444444444",
+      "name": "Approved for external actions?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        7800,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a5555555-5555-4555-8555-555555555555",
+              "leftValue": "={{ $('Track C: Structure Tasks and Events').first().json.actionItemCount }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt",
+                "name": "filter.operator.gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a5555555-5555-4555-8555-555555555555",
+      "name": "Has action items?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        8160,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a6666666-6666-4666-8666-666666666666",
+              "leftValue": "={{ $('Track C: Structure Tasks and Events').first().json.schedulableEventCount }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt",
+                "name": "filter.operator.gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a6666666-6666-4666-8666-666666666666",
+      "name": "Has schedulable events?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        8160,
+        920
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "load-action-items",
+              "name": "actionItems",
+              "value": "={{ $('Track C: Structure Tasks and Events').first().json.actionItems }}",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a7777777-7777-4777-8777-777777777777",
+      "name": "Load Action Items",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        8500,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "load-calendar-events",
+              "name": "schedulableEvents",
+              "value": "={{ $('Track C: Structure Tasks and Events').first().json.schedulableEvents }}",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a8888888-8888-4888-8888-888888888888",
+      "name": "Load Calendar Events",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        8500,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "actionItems",
+        "include": "noOtherFields",
+        "options": {}
+      },
+      "id": "a9999999-9999-4999-8999-999999999999",
+      "name": "Split Action Items",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        8840,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "schedulableEvents",
+        "include": "noOtherFields",
+        "options": {}
+      },
+      "id": "b1111111-1111-4111-8111-111111111111",
+      "name": "Split Calendar Events",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        8840,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "create",
+        "databaseId": {
+          "__rl": true,
+          "mode": "id",
+          "value": ""
+        },
+        "title": "={{ $json.task }}",
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Owner|rich_text",
+              "textContent": "={{ $json.owner || '' }}"
+            },
+            {
+              "key": "Deadline|rich_text",
+              "textContent": "={{ $json.deadline || '' }}"
+            },
+            {
+              "key": "Missing information|rich_text",
+              "textContent": "={{ Array.isArray($json.missing_information) ? $json.missing_information.join(', ') : '' }}"
+            },
+            {
+              "key": "Needs review|checkbox",
+              "checkboxValue": "={{ $json.needs_review === true }}"
+            },
+            {
+              "key": "Week 2 route|rich_text",
+              "textContent": "={{ $('Track C: Structure Tasks and Events').first().json.route }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b2222222-2222-4222-8222-222222222222",
+      "name": "Create Notion Task",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        9180,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "event",
+        "operation": "create",
+        "calendar": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "start": "={{ $json.event_start }}",
+        "end": "={{ $json.event_end }}",
+        "useDefaultReminders": true,
+        "additionalFields": {
+          "summary": "={{ $json.event_title }}",
+          "description": "Approved by the human approval form. The date and times come from the meeting notes."
+        }
+      },
+      "id": "b3333333-3333-4333-8333-333333333333",
+      "name": "Create Calendar Event",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1,
+      "position": [
+        9180,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "stopped-output",
+              "name": "output",
+              "value": "Human approval was not given. Notion and Google Calendar were not called.",
+              "type": "string"
+            },
+            {
+              "id": "stopped-notion",
+              "name": "notionCreated",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "stopped-calendar",
+              "name": "calendarCreated",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "stopped-decision",
+              "name": "humanDecision",
+              "value": "={{ $json.Decision || $json.data.Decision || 'not submitted' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b4444444-4444-4444-8444-444444444444",
+      "name": "External Actions Not Created",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        8160,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "no-notion-output",
+              "name": "output",
+              "value": "Approved run: no action items to send. Notion was not called.",
+              "type": "string"
+            },
+            {
+              "id": "no-notion-flag",
+              "name": "notionCreated",
+              "value": false,
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b5555555-5555-4555-8555-555555555555",
+      "name": "No Notion Task",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        8500,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "no-calendar-output",
+              "name": "output",
+              "value": "Approved run: no complete confirmed event to send. Google Calendar was not called.",
+              "type": "string"
+            },
+            {
+              "id": "no-calendar-flag",
+              "name": "calendarCreated",
+              "value": false,
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b6666666-6666-4666-8666-666666666666",
+      "name": "No Calendar Event",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        8500,
+        1040
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "id": "b7777777-7777-4777-8777-777777777777",
+      "name": "Week 3 Result",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.1,
+      "position": [
+        9520,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Week 4 \u2014 Organizational routing\n\nClassify Organizational Action reads the original notes and the validated extraction.\n\nCheck Routing Confidence keeps confidence below 0.75, unclear labels, and confirmation language away from Notion and Google Calendar.\n\nTASK \u2192 Project Task Queue \u2192 Human Approval \u2192 Notion\nMEETING \u2192 Calendar Coordinator Queue \u2192 Google Calendar only when YYYY-MM-DD and HH:MM already exist\nFOLLOW_UP \u2192 Communication Follow-up Queue \u2192 stop, no email\nUNCLEAR or low confidence \u2192 Human Review \u2192 stop\n\nHuman Approval still comes before Google Calendar. The event is created on the connected calendar. Guest emails are not required.",
+        "height": 340,
+        "width": 1180,
+        "color": 7
+      },
+      "id": "59bb445b-0891-42a2-851b-e66f77d66a82",
+      "name": "Sticky Note Week 4",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        4280,
+        -380
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ \"ORIGINAL MEETING NOTES:\\n\" + $('When chat message received').first().json.chatInput + \"\\n\\nFINAL SUMMARY:\\n\" + ($json.output || \"\") + \"\\n\\nVALIDATED ACTION ITEMS:\\n\" + JSON.stringify($json.actionItems || []) + \"\\n\\nSCHEDULABLE EVENTS:\\n\" + JSON.stringify($json.schedulableEvents || []) + \"\\n\\nCALENDAR ROWS:\\n\" + JSON.stringify($json.calendarEvents || []) }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "You are the AI Classifier / Triage Agent in Meet Flow, a graduate student's meeting-notes workflow.\n\nYou do not create tasks, calendar events, or messages. You only classify the organizational action in the original meeting notes.\n\nReturn one object with exactly these fields:\n- category: TASK, MEETING, FOLLOW_UP, or UNCLEAR\n- route_owner: the matching role name below\n- confidence: a number from 0 to 1\n- routing_reason: one sentence based only on the notes\n- needs_human_review: true or false\n\nRole names, copied exactly:\n- TASK: Project / Task Owner\n- MEETING: Calendar / Meeting Coordinator\n- FOLLOW_UP: Communication / Follow-up Owner\n- UNCLEAR: Human Reviewer\n\nCategory rules:\n- TASK: a named person will complete a project deliverable such as update, finish, draft, or prepare. A meeting that already happened is background, not a calendar item.\n- MEETING: the notes ask to schedule, hold, or place a future meeting or event on a calendar.\n- FOLLOW_UP: the action is to email, message, or follow up with someone. Do not label a follow-up as TASK.\n- UNCLEAR: the owner is missing, the action is only possible, the notes say someone or we may need, or the notes require confirmation before anyone acts.\n\nDo not invent an owner, deadline, date, time, or approval. If the notes do not contain an exact YYYY-MM-DD date, still use MEETING when the request is to schedule a meeting. Set needs_human_review to true in that case. Do not convert Tuesday, Friday, or 2:00 PM into another format.\n\nUse confidence from 0.90 to 0.98 when one category is explicit.\nUse confidence at or below 0.55 when the notes are hedged, unauthorized, or require confirmation.\nSet needs_human_review to true when category is UNCLEAR, when confidence is below 0.75, or when a meeting is missing an exact date or clock time.\n\nExamples:\n1. During today's project meeting, Alex agreed to update the project dashboard by Friday.\n   category TASK. route_owner Project / Task Owner. confidence 0.96. needs_human_review false.\n2. Schedule a sponsor project meeting for Tuesday at 2:00 PM for 30 minutes.\n   category MEETING. route_owner Calendar / Meeting Coordinator. confidence 0.95. needs_human_review true.\n   Tuesday and 2:00 PM are not an exact calendar date. Do not convert them.\n3. Priya should follow up with the sponsor tomorrow about the project presentation.\n   category FOLLOW_UP. route_owner Communication / Follow-up Owner. confidence 0.95. needs_human_review false.\n4. We may need to contact the sponsor about the dashboard problem before Thursday, but let's confirm with Alex first.\n   category UNCLEAR. route_owner Human Reviewer. confidence 0.42. needs_human_review true.\n   The routing_reason must say that confirmation from Alex is required before action."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "id": "e3b0c908-cef8-475f-8efc-b2c2ab2fbbf3",
+      "name": "Classify Organizational Action",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        4360,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "gpt-4o-mini"
+        },
+        "options": {
+          "maxTokens": 500,
+          "temperature": 0
+        }
+      },
+      "id": "8db60f0b-8053-4102-a7b3-bc4c4e28b417",
+      "name": "OpenAI Chat Model - Classifier",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        4280,
+        840
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": null,
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"category\": {\n      \"type\": \"string\",\n      \"enum\": [\n        \"TASK\",\n        \"MEETING\",\n        \"FOLLOW_UP\",\n        \"UNCLEAR\"\n      ]\n    },\n    \"route_owner\": {\n      \"type\": \"string\"\n    },\n    \"confidence\": {\n      \"type\": \"number\"\n    },\n    \"routing_reason\": {\n      \"type\": \"string\"\n    },\n    \"needs_human_review\": {\n      \"type\": \"boolean\"\n    }\n  },\n  \"required\": [\n    \"category\",\n    \"route_owner\",\n    \"confidence\",\n    \"routing_reason\",\n    \"needs_human_review\"\n  ]\n}",
+        "autoFix": true
+      },
+      "id": "afa36cf9-7b3a-490f-b9a3-a3274cab5fb0",
+      "name": "Structured Output Parser - Classifier",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        4620,
+        840
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Week 4 routing guardrail for Meet Flow.\n * The classifier proposes a category. This function decides the route.\n * It does not invent an owner, deadline, date, or time.\n */\n\nvar ROUTE_OWNERS = {\n  TASK: \"Project / Task Owner\",\n  MEETING: \"Calendar / Meeting Coordinator\",\n  FOLLOW_UP: \"Communication / Follow-up Owner\",\n  UNCLEAR: \"Human Reviewer\",\n};\n\nvar CONFIDENCE_THRESHOLD = 0.75;\n\nfunction normalizeCategory(value) {\n  if (typeof value !== \"string\") return null;\n  var key = value.trim().toUpperCase().replace(/[\\s-]+/g, \"_\");\n  if (key === \"TASK\" || key === \"MEETING\" || key === \"FOLLOW_UP\" || key === \"UNCLEAR\") {\n    return key;\n  }\n  return null;\n}\n\nfunction parseConfidence(value) {\n  var number = null;\n  if (typeof value === \"number\") number = value;\n  else if (typeof value === \"string\" && value.trim() !== \"\") number = Number(value.trim());\n  else return null;\n  if (!isFinite(number)) return null;\n  if (number > 1 && number <= 100) number = number / 100;\n  if (number < 0 || number > 1) return null;\n  return Math.round(number * 1000) / 1000;\n}\n\nfunction unwrapClassifier(value, depth) {\n  if (depth > 5 || value == null) return null;\n  if (typeof value === \"string\") {\n    var trimmed = value.trim();\n    if (!trimmed) return null;\n    var fenced = trimmed.match(/^```(?:json)?\\s*([\\s\\S]*?)\\s*```$/i);\n    var raw = fenced ? fenced[1].trim() : trimmed;\n    try {\n      return unwrapClassifier(JSON.parse(raw), depth + 1);\n    } catch (error) {\n      return null;\n    }\n  }\n  if (typeof value !== \"object\" || Array.isArray(value)) return null;\n  if (Object.prototype.hasOwnProperty.call(value, \"category\")) return value;\n  if (Object.prototype.hasOwnProperty.call(value, \"output\")) {\n    var nested = unwrapClassifier(value.output, depth + 1);\n    if (nested) return nested;\n  }\n  if (Object.prototype.hasOwnProperty.call(value, \"text\")) {\n    var nestedText = unwrapClassifier(value.text, depth + 1);\n    if (nestedText) return nestedText;\n  }\n  return null;\n}\n\nfunction authorizationHold(notes) {\n  var text = String(notes || \"\");\n  var named = text.match(/\\bconfirm with\\s+([A-Za-z]+)/i);\n  if (named) {\n    return \"Confirmation from \" + named[1] + \" is required before action.\";\n  }\n  if (/\\b(let'?s confirm|confirm first|needs to confirm|need to confirm)\\b/i.test(text)) {\n    return \"Confirmation is required before action.\";\n  }\n  if (/\\b(we may need|may need to|might need to|not yet authorized|not authorized|someone should)\\b/i.test(text)) {\n    return \"The notes do not authorize this action. Human review is required before action.\";\n  }\n  return null;\n}\n\nfunction hasFollowUpLanguage(notes) {\n  return /\\b(follow[\\s-]?up|e-mail|emails?)\\b/i.test(String(notes || \"\"));\n}\n\nfunction hasScheduleRequest(notes) {\n  var text = String(notes || \"\");\n  return /\\bschedule\\b/i.test(text) && /\\bmeeting\\b/i.test(text);\n}\n\nfunction readyTaskCount(track) {\n  var items = track && Array.isArray(track.actionItems) ? track.actionItems : [];\n  var count = 0;\n  items.forEach(function (item) {\n    if (item && item.task && item.needs_review !== true) count += 1;\n  });\n  return count;\n}\n\nfunction applyRoutingGuardrail(modelPayload, track, notes) {\n  var source = track && typeof track === \"object\" ? track : {};\n  var parsed = unwrapClassifier(modelPayload, 0) || {};\n  var modelCategory = normalizeCategory(parsed.category);\n  var modelConfidence = parseConfidence(parsed.confidence);\n  var modelReason = typeof parsed.routing_reason === \"string\" ? parsed.routing_reason.trim() : \"\";\n  var modelOwner = typeof parsed.route_owner === \"string\" ? parsed.route_owner.trim() : \"\";\n  var originalNotes = String(notes || \"\").trim();\n\n  var category = modelCategory || \"UNCLEAR\";\n  var confidence = modelConfidence === null ? 0 : modelConfidence;\n  var guardrail = \"none\";\n  var escalation = \"\";\n  var correction = \"\";\n  var holdReason = \"\";\n  var authMessage = authorizationHold(originalNotes);\n\n  if (!originalNotes) {\n    category = \"UNCLEAR\";\n    confidence = 0;\n    guardrail = \"missing_notes\";\n    escalation = \"No meeting notes were found. Human review is required before action.\";\n  } else if (authMessage) {\n    category = \"UNCLEAR\";\n    guardrail = \"confirmation_required\";\n    escalation = authMessage;\n  } else if (!modelCategory || modelConfidence === null) {\n    category = \"UNCLEAR\";\n    confidence = 0;\n    guardrail = \"invalid_classifier_output\";\n    escalation = \"The classifier did not return a usable category and confidence. Human review is required before action.\";\n  } else if (modelCategory === \"UNCLEAR\" || !(confidence >= CONFIDENCE_THRESHOLD)) {\n    category = \"UNCLEAR\";\n    guardrail = modelCategory === \"UNCLEAR\" ? \"unclear_category\" : \"low_confidence\";\n    escalation = modelCategory === \"UNCLEAR\"\n      ? \"The category is unclear. Human review is required before action.\"\n      : \"Confidence is below 0.75, so the item was sent to human review before any external action.\";\n  } else if (hasFollowUpLanguage(originalNotes) && !hasScheduleRequest(originalNotes) && category !== \"FOLLOW_UP\") {\n    category = \"FOLLOW_UP\";\n    guardrail = \"follow_up_language\";\n    correction = \"The notes describe a communication follow-up, so the item was kept out of Notion and Google Calendar.\";\n  } else if (hasScheduleRequest(originalNotes) && !hasFollowUpLanguage(originalNotes) && category !== \"MEETING\") {\n    category = \"MEETING\";\n    guardrail = \"meeting_language\";\n    correction = \"The notes ask to schedule a meeting, so the item was sent to the calendar queue.\";\n  }\n\n  var routeKey = \"HUMAN_REVIEW\";\n  var notionAllowed = \"no\";\n  var calendarAllowed = \"no\";\n  var executionHeld = false;\n  var schedulableCount = Number(source.schedulableEventCount || 0);\n  if (!isFinite(schedulableCount) || schedulableCount < 0) schedulableCount = 0;\n\n  if (escalation) {\n    category = \"UNCLEAR\";\n    routeKey = \"HUMAN_REVIEW\";\n  } else if (category === \"TASK\") {\n    if (readyTaskCount(source) > 0) {\n      routeKey = \"TASK\";\n      notionAllowed = \"yes\";\n    } else {\n      category = \"UNCLEAR\";\n      routeKey = \"HUMAN_REVIEW\";\n      guardrail = \"week3_validation\";\n      escalation = \"Week 3 validation did not find a complete task. Human review is required before action.\";\n    }\n  } else if (category === \"MEETING\") {\n    routeKey = \"MEETING\";\n    if (schedulableCount > 0) {\n      calendarAllowed = \"yes\";\n    } else {\n      executionHeld = true;\n      holdReason = \"The meeting route is correct, but the notes do not contain a YYYY-MM-DD date and 24-hour start and end times. No date or time was invented. Google Calendar was not called.\";\n      if (guardrail === \"none\" || guardrail === \"meeting_language\") {\n        guardrail = \"meeting_details_missing\";\n      }\n    }\n  } else if (category === \"FOLLOW_UP\") {\n    routeKey = \"FOLLOW_UP\";\n  } else {\n    category = \"UNCLEAR\";\n    routeKey = \"HUMAN_REVIEW\";\n    guardrail = \"unclear_category\";\n    escalation = \"The route could not be determined. Human review is required before action.\";\n  }\n\n  if (notionAllowed === \"yes\" && routeKey !== \"TASK\") notionAllowed = \"no\";\n  if (calendarAllowed === \"yes\" && routeKey !== \"MEETING\") calendarAllowed = \"no\";\n\n  var routingReason = modelReason || \"Routed from the meeting notes.\";\n  if (escalation) routingReason = escalation;\n  else if (holdReason) routingReason = holdReason;\n  else if (correction) routingReason = correction;\n\n  var needsHumanReview = routeKey === \"HUMAN_REVIEW\" || executionHeld;\n\n  var decision = {\n    output: \"\",\n    category: category,\n    route_owner: ROUTE_OWNERS[category],\n    confidence: confidence,\n    routing_reason: routingReason,\n    needs_human_review: needsHumanReview,\n    route_key: routeKey,\n    guardrail_applied: guardrail,\n    escalation_message: escalation,\n    hold_reason: holdReason,\n    route_correction: correction,\n    notion_execution_allowed: notionAllowed,\n    calendar_execution_allowed: calendarAllowed,\n    execution_held: executionHeld,\n    email_sent: false,\n    external_action: \"none\",\n    original_notes: originalNotes,\n    model_category: modelCategory,\n    model_confidence: modelConfidence,\n    model_route_owner: modelOwner,\n    model_routing_reason: modelReason,\n    model_needs_human_review: parsed.needs_human_review === true,\n    actionItems: Array.isArray(source.actionItems) ? source.actionItems : [],\n    actionItemCount: Number(source.actionItemCount || 0),\n    schedulableEventCount: schedulableCount,\n    week2_route: source.route || null,\n  };\n\n  decision.output = [\n    decision.category,\n    \"\u2192\",\n    decision.route_owner,\n    \"(\" + decision.route_key + \", confidence \" + decision.confidence + \").\",\n    decision.routing_reason,\n  ].join(\" \");\n\n  decision.approvalText = [\n    \"Week 4 category: \" + decision.category,\n    \"Route owner: \" + decision.route_owner,\n    \"Confidence: \" + decision.confidence,\n    \"Routing reason: \" + decision.routing_reason,\n    \"\",\n    String(source.approvalText || \"\"),\n  ].join(\"\\n\");\n\n  return decision;\n}\n\nconst chat = $(\"When chat message received\").first().json;\nconst track = $(\"Track C: Structure Tasks and Events\").first().json;\nconst notes = chat && typeof chat.chatInput === \"string\" ? chat.chatInput.trim() : \"\";\nconst decision = applyRoutingGuardrail($input.first().json, track || {}, notes);\nreturn [{ json: decision }];\n"
+      },
+      "id": "23fc0f29-e27c-4732-9adf-7e3f114de8c2",
+      "name": "Check Routing Confidence",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4840,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "rules",
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "c4ec7162-d7f3-4343-b3c9-899d1c327e70",
+                    "leftValue": "={{ $json.route_key }}",
+                    "rightValue": "TASK",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "TASK"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "a639d7ec-3b05-4e93-a6fb-e10a823a3a18",
+                    "leftValue": "={{ $json.route_key }}",
+                    "rightValue": "MEETING",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "MEETING"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "6b4a41fb-04fd-4e9e-9b77-5ea0ba7bc92b",
+                    "leftValue": "={{ $json.route_key }}",
+                    "rightValue": "FOLLOW_UP",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "FOLLOW_UP"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "d25841fa-90d5-44bd-b28a-9dafc95afca6",
+                    "leftValue": "={{ $json.route_key }}",
+                    "rightValue": "HUMAN_REVIEW",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "HUMAN_REVIEW"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "bacf3bdf-c582-4a68-926a-9c7e471c3390",
+      "name": "Route by Action Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        5680,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst message = \"Routed to the Project / Task Owner. The next step is the human approval form. Notion is not called until that form is approved.\";\nconst queueName = \"Project Task Queue\";\nconst queueOwner = \"Project / Task Owner\";\nconst nextAction = \"Human approval, then Notion if the form choice is Approve.\";\n\nreturn [\n  {\n    json: Object.assign({}, item, {\n      output: message,\n      queue_name: queueName,\n      queue_owner: queueOwner,\n      next_action: nextAction,\n      notionCreated: false,\n      calendarCreated: false,\n      email_sent: false,\n      external_action: \"none\",\n    }),\n  },\n];\n"
+      },
+      "id": "236dcc32-de36-4d77-b72d-ebf3aa091a8d",
+      "name": "Project Task Queue",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6080,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst ready = item.calendar_execution_allowed === \"yes\";\nconst message = ready\n  ? \"Routed to the Calendar / Meeting Coordinator. The date and times passed Week 3 validation. The next step is the human approval form. Google Calendar is not called until that form is approved.\"\n  : (item.hold_reason || \"Routed to the Calendar / Meeting Coordinator. Google Calendar was not called.\");\nconst queueName = \"Calendar Coordinator Queue\";\nconst queueOwner = \"Calendar / Meeting Coordinator\";\nconst nextAction = ready ? \"Human approval, then Google Calendar if the form choice is Approve.\" : \"Hold for clarification. Do not create a calendar event.\";\n\nreturn [\n  {\n    json: Object.assign({}, item, {\n      output: message,\n      queue_name: queueName,\n      queue_owner: queueOwner,\n      next_action: nextAction,\n      notionCreated: false,\n      calendarCreated: false,\n      email_sent: false,\n      external_action: \"none\",\n    }),\n  },\n];\n"
+      },
+      "id": "e0326cdc-6f6c-48a1-8226-50cc9220515e",
+      "name": "Calendar Coordinator Queue",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6080,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst message = \"Queued for the Communication / Follow-up Owner. No email was sent. A person decides whether to make contact.\";\nconst queueName = \"Communication Follow-up Queue\";\nconst queueOwner = \"Communication / Follow-up Owner\";\nconst nextAction = \"Human handling in the follow-up queue.\";\n\nreturn [\n  {\n    json: Object.assign({}, item, {\n      output: message,\n      queue_name: queueName,\n      queue_owner: queueOwner,\n      next_action: nextAction,\n      notionCreated: false,\n      calendarCreated: false,\n      email_sent: false,\n      external_action: \"none\",\n    }),\n  },\n];\n"
+      },
+      "id": "ffac3687-13a0-4375-bddf-f3203953d4e9",
+      "name": "Communication Follow-up Queue",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6080,
+        860
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst reason = item.escalation_message || item.routing_reason || \"Human review is required before action.\";\nconst message = reason + \" No Notion task was created. No calendar event was created. No message was sent.\";\nconst queueName = \"Human Review - Unclear or Low Confidence\";\nconst queueOwner = \"Human Reviewer\";\nconst nextAction = \"Stop. A person reviews the item before any action.\";\n\nreturn [\n  {\n    json: Object.assign({}, item, {\n      output: message,\n      queue_name: queueName,\n      queue_owner: queueOwner,\n      next_action: nextAction,\n      notionCreated: false,\n      calendarCreated: false,\n      email_sent: false,\n      external_action: \"none\",\n    }),\n  },\n];\n"
+      },
+      "id": "bdb10681-2602-423b-9d60-61da500b2fa3",
+      "name": "Human Review - Unclear or Low Confidence",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6080,
+        1220
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "6f110c6f-666f-487f-b256-cf0db0185a05",
+              "leftValue": "={{ $json.calendar_execution_allowed }}",
+              "rightValue": "yes",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "fe08f50b-c8f4-4e8b-bb3f-d7d678ae3b46",
+      "name": "Calendar Ready for Scheduling?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        6520,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst reason = item.hold_reason || \"The notes do not contain a complete calendar date and time. Google Calendar was not called.\";\nconst message = reason + \" No Notion task was created. No calendar event was created. No message was sent.\";\nconst queueName = \"Calendar Held for Human Clarification\";\nconst queueOwner = \"Calendar / Meeting Coordinator\";\nconst nextAction = \"Wait for an exact date and time. Do not invent them.\";\n\nreturn [\n  {\n    json: Object.assign({}, item, {\n      output: message,\n      queue_name: queueName,\n      queue_owner: queueOwner,\n      next_action: nextAction,\n      notionCreated: false,\n      calendarCreated: false,\n      email_sent: false,\n      external_action: \"none\",\n    }),\n  },\n];\n"
+      },
+      "id": "1aac80a1-3f8c-4146-bfc9-4f50db80efd3",
+      "name": "Calendar Held for Human Clarification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6960,
+        700
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "Meeting Notes Draft Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model - Draft": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Meeting Notes Draft Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Meeting Notes Draft Agent": {
+      "main": [
+        [
+          {
+            "node": "Store Initial Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Initial Draft": {
+      "main": [
+        [
+          {
+            "node": "Meeting Notes Reviewer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model - Reviewer": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Meeting Notes Reviewer",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Structured Output Parser",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Meeting Notes Reviewer",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Meeting Notes Reviewer": {
+      "main": [
+        [
+          {
+            "node": "Read First Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read First Review": {
+      "main": [
+        [
+          {
+            "node": "PASS or REVISE?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PASS or REVISE?": {
+      "main": [
+        [
+          {
+            "node": "Final Meeting Summary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Meeting Notes Revision Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model - Revision": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Meeting Notes Revision Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Meeting Notes Revision Agent": {
+      "main": [
+        [
+          {
+            "node": "Store Revised Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Revised Draft": {
+      "main": [
+        [
+          {
+            "node": "Meeting Notes Reviewer Again",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model - Second Review": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Meeting Notes Reviewer Again",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Structured Output Parser - Second Review",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser - Second Review": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Meeting Notes Reviewer Again",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Meeting Notes Reviewer Again": {
+      "main": [
+        [
+          {
+            "node": "Read Second Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Second Review": {
+      "main": [
+        [
+          {
+            "node": "Final Meeting Summary After Revision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Meeting Summary": {
+      "main": [
+        [
+          {
+            "node": "Track C: Structure Tasks and Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Meeting Summary After Revision": {
+      "main": [
+        [
+          {
+            "node": "Track C: Structure Tasks and Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Track C: Structure Tasks and Events": {
+      "main": [
+        [
+          {
+            "node": "Classify Organizational Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Human Approval": {
+      "main": [
+        [
+          {
+            "node": "Approved for external actions?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Approved for external actions?": {
+      "main": [
+        [
+          {
+            "node": "Has action items?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Has schedulable events?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "External Actions Not Created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has action items?": {
+      "main": [
+        [
+          {
+            "node": "Load Action Items",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Notion Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has schedulable events?": {
+      "main": [
+        [
+          {
+            "node": "Load Calendar Events",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Calendar Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Action Items": {
+      "main": [
+        [
+          {
+            "node": "Split Action Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Action Items": {
+      "main": [
+        [
+          {
+            "node": "Create Notion Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Notion Task": {
+      "main": [
+        [
+          {
+            "node": "Week 3 Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No Notion Task": {
+      "main": [
+        [
+          {
+            "node": "Week 3 Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Calendar Events": {
+      "main": [
+        [
+          {
+            "node": "Split Calendar Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Calendar Events": {
+      "main": [
+        [
+          {
+            "node": "Create Calendar Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Calendar Event": {
+      "main": [
+        [
+          {
+            "node": "Week 3 Result",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "No Calendar Event": {
+      "main": [
+        [
+          {
+            "node": "Week 3 Result",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Classify Organizational Action": {
+      "main": [
+        [
+          {
+            "node": "Check Routing Confidence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model - Classifier": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Classify Organizational Action",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Structured Output Parser - Classifier",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser - Classifier": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Classify Organizational Action",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Routing Confidence": {
+      "main": [
+        [
+          {
+            "node": "Route by Action Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Action Type": {
+      "main": [
+        [
+          {
+            "node": "Project Task Queue",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Calendar Coordinator Queue",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Communication Follow-up Queue",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Human Review - Unclear or Low Confidence",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Human Review - Unclear or Low Confidence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Project Task Queue": {
+      "main": [
+        [
+          {
+            "node": "Human Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calendar Coordinator Queue": {
+      "main": [
+        [
+          {
+            "node": "Calendar Ready for Scheduling?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calendar Ready for Scheduling?": {
+      "main": [
+        [
+          {
+            "node": "Human Approval",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Calendar Held for Human Clarification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timezone": "America/Phoenix"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "nodeGroups": [],
+  "tags": []
+}
