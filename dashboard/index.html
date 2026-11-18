@@ -3,67 +3,121 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Meet Flow</title>
+    <title>Meet Flow — Public Demo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
-    <header class="top">
-      <div>
-        <p class="kicker">Week 4 — Agentic Organization Design</p>
-        <h1>Meet Flow</h1>
-        <p class="deck">Turn meeting notes into organized actions.</p>
-        <p class="intro">Meet Flow identifies tasks, meetings, and follow-ups from your notes and routes them to the right place.</p>
-      </div>
-      <p class="mode">Demo Mode</p>
-    </header>
-    <p class="notice" id="notice"></p>
-
-    <main>
-      <section class="panel" aria-labelledby="notes-title">
-        <div class="section-head">
-          <h2 id="notes-title">Meeting Notes</h2>
+    <div class="page">
+      <header class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Portfolio public demo · CIS515 Agentic AI · ASU</p>
+          <h1>Meet Flow</h1>
+          <p class="tagline">Turn unstructured meeting notes into structured tasks, meetings, follow-ups, and human review.</p>
         </div>
-        <label class="sr-only" for="notes">Meeting notes</label>
-        <textarea id="notes" rows="7" placeholder="Paste your meeting notes here…"></textarea>
-        <div class="samples" id="samples"></div>
-        <button type="button" id="process">Process Meeting Notes</button>
-        <p class="form-note" id="form-note" hidden></p>
-      </section>
+        <div class="hero-aside">
+          <span class="mode-pill" id="mode-pill">Public Demo</span>
+          <p class="hero-aside-text">Safe demo mode. No live n8n, Notion, or Google Calendar calls.</p>
+        </div>
+      </header>
 
-      <div id="results" hidden>
-        <section class="panel" aria-labelledby="summary-title">
-          <h2 id="summary-title">Meeting Summary</h2>
-          <div class="summary" id="summary"></div>
+      <p class="banner" id="banner" role="status"></p>
+
+      <main>
+        <section class="panel input-panel" aria-labelledby="notes-title">
+          <div class="panel-head">
+            <div>
+              <h2 id="notes-title">Meeting notes</h2>
+              <p class="panel-sub">Paste notes or choose a sample scenario.</p>
+            </div>
+          </div>
+          <label class="sr-only" for="notes">Meeting notes</label>
+          <textarea id="notes" rows="7" placeholder="Paste your meeting notes here…"></textarea>
+          <div class="samples" id="samples" role="group" aria-label="Sample notes"></div>
+          <div class="input-actions">
+            <button type="button" class="btn-primary" id="process">Process meeting notes</button>
+            <p class="form-note" id="form-note" hidden></p>
+          </div>
         </section>
 
-        <section class="panel" aria-labelledby="actions-title">
-          <h2 id="actions-title">Actions Identified</h2>
-          <div class="actions" id="actions"></div>
+        <section class="panel processing-panel" id="processing" hidden aria-live="polite" aria-labelledby="processing-title">
+          <h2 id="processing-title">Analyzing meeting notes</h2>
+          <p class="panel-sub">Meet Flow is running its agentic path on these notes.</p>
+          <ol class="stages" id="stages"></ol>
         </section>
 
-        <section class="panel" id="meeting-panel" hidden aria-labelledby="meeting-title">
-          <h2 id="meeting-title">Meeting Details</h2>
-          <div id="meeting"></div>
-        </section>
+        <div id="results" hidden>
+          <section class="panel summary-hero" aria-labelledby="result-title">
+            <div class="summary-hero-top">
+              <div>
+                <p class="eyebrow soft">Meeting summary</p>
+                <h2 id="result-title" class="meeting-title"></h2>
+              </div>
+              <span class="status-pill" id="result-status"></span>
+            </div>
+            <p class="summary-lead" id="result-summary"></p>
+          </section>
 
-        <section class="panel" id="review-panel" hidden aria-labelledby="review-title">
-          <h2 id="review-title">Human Review Required</h2>
-          <div id="review"></div>
-        </section>
+          <section class="stats" aria-label="Result overview" id="stats"></section>
 
-        <section class="panel" aria-labelledby="future-title">
-          <h2 id="future-title">Future Enhancement</h2>
-          <h3>Team Directory</h3>
-          <p>Meet Flow could connect to an organization's employee directory in the future to automatically resolve approved attendee email addresses and add attendees to calendar invitations.</p>
-          <p class="hint">This is not part of the current workflow. The dashboard does not depend on it.</p>
-        </section>
+          <section class="panel" aria-labelledby="actions-title">
+            <div class="panel-head">
+              <div>
+                <h2 id="actions-title">Action cards</h2>
+                <p class="panel-sub">Structured items extracted from the notes. Missing facts stay missing.</p>
+              </div>
+            </div>
+            <div class="action-grid" id="actions"></div>
+          </section>
 
-        <section class="panel" aria-labelledby="activity-title">
-          <h2 id="activity-title">Activity</h2>
-          <ul class="activity" id="activity"></ul>
-        </section>
-      </div>
-    </main>
+          <section class="panel approval-panel" id="approval-panel" hidden aria-labelledby="approval-title">
+            <div class="panel-head">
+              <div>
+                <h2 id="approval-title">Review &amp; approve</h2>
+                <p class="panel-sub">Human Approval sits in front of external tools. Simulate the form choice below.</p>
+              </div>
+            </div>
+            <div class="ready-list" id="ready-list"></div>
+            <div class="approval-actions" id="approval-actions">
+              <button type="button" class="btn-primary" id="approve">Approve</button>
+              <button type="button" class="btn-ghost" id="reject">Reject</button>
+            </div>
+            <p class="form-note" id="approval-note" hidden></p>
+          </section>
+
+          <section class="panel tools-panel" id="tools-panel" hidden aria-labelledby="tools-title">
+            <div class="panel-head">
+              <div>
+                <h2 id="tools-title">External actions</h2>
+                <p class="panel-sub">Simulated Notion and Google Calendar results for this portfolio demo.</p>
+              </div>
+            </div>
+            <p class="sim-banner" id="sim-banner">Portfolio Demo — External actions are simulated. No changes were made to Notion or Google Calendar.</p>
+            <div class="tool-grid" id="tool-results"></div>
+          </section>
+
+          <section class="panel process-panel" aria-labelledby="process-title">
+            <button type="button" class="process-toggle" id="process-toggle" aria-expanded="false" aria-controls="process-body">
+              <span>
+                <strong id="process-title">How Meet Flow handled this</strong>
+                <span class="panel-sub">Agentic path for recruiters and reviewers</span>
+              </span>
+              <span class="chevron" aria-hidden="true">+</span>
+            </button>
+            <div class="process-body" id="process-body" hidden>
+              <ol class="flow" id="flow"></ol>
+              <p class="panel-sub flow-note">The public demo mirrors the final Week 4 workflow design. It does not call n8n or write to external systems.</p>
+            </div>
+          </section>
+        </div>
+      </main>
+
+      <footer class="footer">
+        <p>Individual academic project · CIS515 Agentic AI · Arizona State University</p>
+      </footer>
+    </div>
     <script src="app.js"></script>
   </body>
 </html>

@@ -144,15 +144,13 @@ An earlier unclear note with no owner or deadline stopped at Human Review with n
 - Notion integration for tasks  
 - Google Calendar integration for meetings  
 - Combined Notion + Calendar creation from one approved run  
-- Demo Mode dashboard for exploring sample outcomes  
+- Public demo UI with processing stages, action cards, Human Approval simulation, and simulated tool results  
 
 ---
 
-## Dashboard (Demo Mode)
+## Public demo dashboard
 
-![Meet Flow dashboard Demo Mode](screenshots/04_dashboard_meeting.png)
-
-The `dashboard/` folder is a **frontend prototype in Demo Mode**. It does **not** call n8n, an LLM, Notion, or Google Calendar. Sample notes are matched locally so you can see how results are presented.
+The `dashboard/` folder is a **safe PUBLIC_DEMO** experience for GitHub and LinkedIn. It mirrors the Week 4 agentic path with local sample scenarios only. It does **not** call n8n, an LLM API, Notion, or Google Calendar.
 
 ```bash
 cd dashboard
@@ -161,15 +159,37 @@ python3 -m http.server 8765
 
 Open `http://127.0.0.1:8765`. Optional: `?demo=both`, `task`, `meeting`, `follow`, or `unclear`.
 
+![Public demo home](screenshots/04_dashboard_home.png)
+
+*Public demo home — paste notes or choose a sample scenario.*
+
+![Processing stages](screenshots/07_dashboard_processing.png)
+
+*Processing state — staged progress with no fake percentages.*
+
+![Result overview and action cards](screenshots/04_dashboard_results.png)
+
+*Completed result — meeting summary, overview stats, and professional action cards.*
+
+![Simulated tool results after Approve](screenshots/05_dashboard_approved.png)
+
+*After Approve — simulated Notion and Google Calendar outputs, clearly labeled.*
+
+![Human Review stop](screenshots/06_dashboard_human_review.png)
+
+*Unclear notes — missing owner/deadline stay “Not stated” and stop for Human Review.*
+
+See [docs/public-demo.md](docs/public-demo.md) for the safety model.
+
 ---
 
 ## Repository layout
 
 ```text
 workflow/     Final n8n workflow + JavaScript helpers
-dashboard/    Demo Mode UI prototype
-screenshots/  Execution, Notion, Calendar, and dashboard evidence
-docs/         Architecture and course evolution
+dashboard/    PUBLIC_DEMO UI (simulated results only)
+screenshots/  n8n evidence + public demo UI captures
+docs/         Architecture, course evolution, public demo notes
 ```
 
 Course week folders from CIS515 are kept on my local machine for academic history and are **not** included in this public repository.
