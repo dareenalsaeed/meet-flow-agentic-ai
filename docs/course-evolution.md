@@ -1,6 +1,6 @@
 # Course evolution
 
-Meet Flow was developed as an individual academic project in **CIS515 Agentic AI** at **Arizona State University**. The public portfolio presents the final Week 4 system. The notes below summarize how the design grew across the course.
+Meet Flow was developed as an individual academic project in **CIS 515 — AI and Data Analytics Strategy** at **Arizona State University**. The public portfolio presents the final Week 4 system. The notes below summarize how the design grew across the course.
 
 ## Week 1 — Meeting notes assistant
 

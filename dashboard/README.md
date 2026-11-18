@@ -1,8 +1,9 @@
-# Meet Flow public demo
+# Meet Flow — Agentic AI Meeting Assistant
 
-Polished portfolio UI for the final Meet Flow agentic workflow.
+Public portfolio UI for Meet Flow.
 
-**PUBLIC_DEMO only.** This page never calls n8n, an LLM, Notion, or Google Calendar. Sample notes are matched locally. Approve / Reject simulates Human Approval. External tool cards are labeled simulated.
+**Current mode:** local sample scenarios (`config.js` → `MODE: "local"`).  
+No n8n, LLM, Notion, or Google Calendar calls from this page. Approve / Reject and tool cards are simulated.
 
 ## Open it
 
@@ -15,13 +16,10 @@ Then open `http://127.0.0.1:8765`.
 
 Query shortcuts: `?demo=both`, `task`, `meeting`, `follow`, `unclear`.
 
-## What is simulated
+## Switch to a live n8n processor later
 
-| Surface | Behavior |
-| --- | --- |
-| Process meeting notes | Staged progress UI, then local scenario results |
-| Action cards | Structured demo outputs; missing facts stay “Not stated” |
-| Review & Approve | Local Approve / Reject only |
-| Notion / Google Calendar cards | Simulated after Approve; no API writes |
+1. Set `MODE: "live"` in `config.js`
+2. Set `PROCESSOR_URL` to your webhook
+3. Keep the same UI — `processor.js` posts `{ notes }` and expects the scenario JSON shape already used locally
 
-See `docs/public-demo.md` for the safety model.
+See `docs/public-demo.md`.

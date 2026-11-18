@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Meet Flow — Public Demo</title>
+    <title>Meet Flow — Agentic AI Meeting Assistant</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
@@ -13,13 +13,13 @@
     <div class="page">
       <header class="hero">
         <div class="hero-copy">
-          <p class="eyebrow">Portfolio public demo · CIS515 Agentic AI · ASU</p>
+          <p class="eyebrow">CIS 515 — AI and Data Analytics Strategy · Arizona State University</p>
           <h1>Meet Flow</h1>
+          <p class="product-line">Agentic AI Meeting Assistant</p>
           <p class="tagline">Turn unstructured meeting notes into structured tasks, meetings, follow-ups, and human review.</p>
         </div>
         <div class="hero-aside">
           <span class="mode-pill" id="mode-pill">Public Demo</span>
-          <p class="hero-aside-text">Safe demo mode. No live n8n, Notion, or Google Calendar calls.</p>
         </div>
       </header>
 
@@ -34,7 +34,7 @@
             </div>
           </div>
           <label class="sr-only" for="notes">Meeting notes</label>
-          <textarea id="notes" rows="7" placeholder="Paste your meeting notes here…"></textarea>
+          <textarea id="notes" rows="6" placeholder="Paste your meeting notes here…"></textarea>
           <div class="samples" id="samples" role="group" aria-label="Sample notes"></div>
           <div class="input-actions">
             <button type="button" class="btn-primary" id="process">Process meeting notes</button>
@@ -42,47 +42,59 @@
           </div>
         </section>
 
-        <section class="panel processing-panel" id="processing" hidden aria-live="polite" aria-labelledby="processing-title">
-          <h2 id="processing-title">Analyzing meeting notes</h2>
-          <p class="panel-sub">Meet Flow is running its agentic path on these notes.</p>
-          <ol class="stages" id="stages"></ol>
+        <section class="panel processing-panel compact" id="processing" hidden aria-live="polite" aria-labelledby="processing-title">
+          <div class="processing-head">
+            <h2 id="processing-title">Processing</h2>
+            <p class="panel-sub" id="processing-sub">Reading notes → structuring → classifying → guardrails → human review check</p>
+          </div>
+          <ol class="stages compact-stages" id="stages"></ol>
         </section>
 
         <div id="results" hidden>
+          <section class="panel result-header" aria-labelledby="processed-title">
+            <div class="result-header-main">
+              <p class="eyebrow soft">Result</p>
+              <h2 id="processed-title" class="processed-title">Meeting Processed <span class="check" aria-hidden="true">✓</span></h2>
+              <p class="result-counts" id="result-counts"></p>
+            </div>
+            <span class="status-pill" id="result-status"></span>
+          </section>
+
           <section class="panel summary-hero" aria-labelledby="result-title">
             <div class="summary-hero-top">
               <div>
                 <p class="eyebrow soft">Meeting summary</p>
-                <h2 id="result-title" class="meeting-title"></h2>
+                <h3 id="result-title" class="meeting-title"></h3>
               </div>
-              <span class="status-pill" id="result-status"></span>
             </div>
             <p class="summary-lead" id="result-summary"></p>
           </section>
 
           <section class="stats" aria-label="Result overview" id="stats"></section>
 
-          <section class="panel" aria-labelledby="actions-title">
+          <section class="panel focus-panel" aria-labelledby="actions-title">
             <div class="panel-head">
               <div>
-                <h2 id="actions-title">Action cards</h2>
-                <p class="panel-sub">Structured items extracted from the notes. Missing facts stay missing.</p>
+                <h2 id="actions-title">Actions</h2>
+                <p class="panel-sub">Tasks, meetings, follow-ups, and items that need human review.</p>
               </div>
             </div>
             <div class="action-grid" id="actions"></div>
           </section>
 
           <section class="panel approval-panel" id="approval-panel" hidden aria-labelledby="approval-title">
-            <div class="panel-head">
+            <div class="approval-banner">
               <div>
+                <p class="eyebrow soft">Human control</p>
                 <h2 id="approval-title">Review &amp; approve</h2>
-                <p class="panel-sub">Human Approval sits in front of external tools. Simulate the form choice below.</p>
+                <p class="panel-sub">Confirm which external actions may proceed. Nothing is written to Notion or Google Calendar in this public demo.</p>
               </div>
             </div>
+            <p class="approval-lead">Actions waiting for your decision:</p>
             <div class="ready-list" id="ready-list"></div>
             <div class="approval-actions" id="approval-actions">
-              <button type="button" class="btn-primary" id="approve">Approve</button>
-              <button type="button" class="btn-ghost" id="reject">Reject</button>
+              <button type="button" class="btn-primary" id="approve">Approve selected actions</button>
+              <button type="button" class="btn-ghost" id="reject">Reject / do not create</button>
             </div>
             <p class="form-note" id="approval-note" hidden></p>
           </section>
@@ -90,11 +102,10 @@
           <section class="panel tools-panel" id="tools-panel" hidden aria-labelledby="tools-title">
             <div class="panel-head">
               <div>
-                <h2 id="tools-title">External actions</h2>
-                <p class="panel-sub">Simulated Notion and Google Calendar results for this portfolio demo.</p>
+                <h2 id="tools-title">Simulated tool actions</h2>
+                <p class="panel-sub" id="sim-banner">Simulated for this public portfolio. No changes were made to Notion or Google Calendar.</p>
               </div>
             </div>
-            <p class="sim-banner" id="sim-banner">Portfolio Demo — External actions are simulated. No changes were made to Notion or Google Calendar.</p>
             <div class="tool-grid" id="tool-results"></div>
           </section>
 
@@ -102,22 +113,23 @@
             <button type="button" class="process-toggle" id="process-toggle" aria-expanded="false" aria-controls="process-body">
               <span>
                 <strong id="process-title">How Meet Flow handled this</strong>
-                <span class="panel-sub">Agentic path for recruiters and reviewers</span>
+                <span class="panel-sub">Agentic architecture for recruiters</span>
               </span>
               <span class="chevron" aria-hidden="true">+</span>
             </button>
             <div class="process-body" id="process-body" hidden>
               <ol class="flow" id="flow"></ol>
-              <p class="panel-sub flow-note">The public demo mirrors the final Week 4 workflow design. It does not call n8n or write to external systems.</p>
             </div>
           </section>
         </div>
       </main>
 
       <footer class="footer">
-        <p>Individual academic project · CIS515 Agentic AI · Arizona State University</p>
+        <p>Individual academic project · CIS 515 — AI and Data Analytics Strategy · Arizona State University</p>
       </footer>
     </div>
+    <script src="config.js"></script>
+    <script src="processor.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

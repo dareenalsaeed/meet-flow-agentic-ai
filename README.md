@@ -2,7 +2,7 @@
 
 Meet Flow turns unstructured meeting notes into structured tasks, meetings, follow-ups, and items that need human review. It classifies each action, routes it to the right organizational owner, and only calls external tools after validation and human approval.
 
-This repository presents the final Meet Flow system from my individual academic project in **CIS515 Agentic AI** at **Arizona State University**.
+This repository presents the final Meet Flow system from my individual academic project in **CIS 515 — AI and Data Analytics Strategy** at **Arizona State University**.
 
 ---
 
@@ -105,7 +105,7 @@ Two different human controls:
 - **JavaScript Code nodes** — task/event structuring and routing guardrails  
 - **Notion** — task creation  
 - **Google Calendar** — meeting creation  
-- **HTML / CSS / JavaScript** — Demo Mode dashboard prototype  
+- **HTML / CSS / JavaScript** — Public demo dashboard (local samples today; ready for an n8n processor URL)  
 
 Credentials are **not** stored in this repository. Import the workflow into n8n and connect your own Notion, Google Calendar, and model credentials.
 
@@ -150,7 +150,7 @@ An earlier unclear note with no owner or deadline stopped at Human Review with n
 
 ## Public demo dashboard
 
-The `dashboard/` folder is a **safe PUBLIC_DEMO** experience for GitHub and LinkedIn. It mirrors the Week 4 agentic path with local sample scenarios only. It does **not** call n8n, an LLM API, Notion, or Google Calendar.
+The `dashboard/` folder is a portfolio UI for **Meet Flow — Agentic AI Meeting Assistant**. It currently uses local sample scenarios (`config.js` → `MODE: "local"`). The same result UI is ready to switch to a live n8n processor URL later without a redesign.
 
 ```bash
 cd dashboard
@@ -163,23 +163,19 @@ Open `http://127.0.0.1:8765`. Optional: `?demo=both`, `task`, `meeting`, `follow
 
 *Public demo home — paste notes or choose a sample scenario.*
 
-![Processing stages](screenshots/07_dashboard_processing.png)
-
-*Processing state — staged progress with no fake percentages.*
-
 ![Result overview and action cards](screenshots/04_dashboard_results.png)
 
-*Completed result — meeting summary, overview stats, and professional action cards.*
+*Results focus — Meeting Processed header, summary, stats, and action cards.*
 
 ![Simulated tool results after Approve](screenshots/05_dashboard_approved.png)
 
-*After Approve — simulated Notion and Google Calendar outputs, clearly labeled.*
+*After Approve — simulated Notion and Google Calendar outputs.*
 
 ![Human Review stop](screenshots/06_dashboard_human_review.png)
 
 *Unclear notes — missing owner/deadline stay “Not stated” and stop for Human Review.*
 
-See [docs/public-demo.md](docs/public-demo.md) for the safety model.
+See [docs/public-demo.md](docs/public-demo.md) for the safety model and live-processor switch.
 
 ---
 
@@ -192,7 +188,7 @@ screenshots/  n8n evidence + public demo UI captures
 docs/         Architecture, course evolution, public demo notes
 ```
 
-Course week folders from CIS515 are kept on my local machine for academic history and are **not** included in this public repository.
+Course week folders from CIS 515 are kept on my local machine for academic history and are **not** included in this public repository.
 
 ---
 
@@ -220,4 +216,4 @@ Helper logic used in the design lives under `workflow/src/`.
 
 ## Academic context
 
-Individual project for **CIS515 Agentic AI**, Arizona State University. Design evolved from a basic meeting-notes assistant to a tool-using workflow with human approval, then to an organizational action router. See [docs/course-evolution.md](docs/course-evolution.md).
+Individual project for **CIS 515 — AI and Data Analytics Strategy**, Arizona State University. Design evolved from a basic meeting-notes assistant to a tool-using workflow with human approval, then to an organizational action router. See [docs/course-evolution.md](docs/course-evolution.md).
